@@ -4,7 +4,7 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "/index.html",
+      "destination": "/qr-lab.html",
       "permanent": false
     }
   ],
@@ -12,6 +12,10 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/index.js"
+    },
+    {
+      "source": "/qr-lab",
+      "destination": "/qr-lab.html"
     }
   ]
 }
