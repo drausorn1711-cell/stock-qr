@@ -20,7 +20,7 @@ const labDb = createClient({
 
 const DEMO_PRODUCTS = [
     {
-        qrCode: 'SM-NP-001',
+        qrCode: '8851001001036',
         sku: 'กระปุกกลาง 150g',
         name: 'น้ำพริกอ่องสูตรดั้งเดิม',
         category: 'น้ำพริก',
@@ -30,7 +30,7 @@ const DEMO_PRODUCTS = [
         team: 'team1'
     },
     {
-        qrCode: 'SM-NP-002',
+        qrCode: '8851001001029',
         sku: 'กระปุกเล็ก 100g',
         name: 'น้ำพริกตาแดงแมงดา',
         category: 'น้ำพริก',
@@ -40,7 +40,7 @@ const DEMO_PRODUCTS = [
         team: 'team1'
     },
     {
-        qrCode: 'SM-DH-003',
+        qrCode: '8851001001012',
         sku: 'ถุง 500g',
         name: 'กระเทียมเจียวกรอบคัดพิเศษ',
         category: 'ของแห้ง',
@@ -50,7 +50,7 @@ const DEMO_PRODUCTS = [
         team: 'team1'
     },
     {
-        qrCode: 'SM-HB-004',
+        qrCode: '8851001001043',
         sku: 'แพ็ค 250g',
         name: 'พริกทอดกรอบสมุนไพร',
         category: 'สมุนไพร',
@@ -60,7 +60,7 @@ const DEMO_PRODUCTS = [
         team: 'team1'
     },
     {
-        qrCode: 'SM-MT-101',
+        qrCode: '8852002002015',
         sku: 'กล่อง 1 กก.',
         name: 'หมูฝอยกรอบพรีเมียม',
         category: 'ของแห้ง',
@@ -70,7 +70,7 @@ const DEMO_PRODUCTS = [
         team: 'team2'
     },
     {
-        qrCode: 'SM-MT-102',
+        qrCode: '8852002002022',
         sku: 'แพ็ค 200g',
         name: 'ปลาหมึกเชื่อมสามรส',
         category: 'ของนำเข้า',

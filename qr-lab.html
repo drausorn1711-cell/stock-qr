@@ -2,32 +2,26 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>StockMaster - ระบบคลังสินค้า (ทดลองเพิ่มปุ่มสแกน QR)</title>
+    <title>StockMaster - ระบบคลังสินค้า + สแกนบาร์โค้ด</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- QR Camera Scanner -->
+    <!-- Mobile Barcode + QR Camera Scanner (รองรับ iPhone & Android) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
-    <!-- Libraries for Export (Excel & PDF) -->
+    <!-- Export Excel & PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
     <style>
-        @keyframes rowFlashIn {
-            0% { background-color: #d1fae5; }
-            100% { background-color: transparent; }
-        }
-        @keyframes rowFlashOut {
-            0% { background-color: #ffe4e6; }
-            100% { background-color: transparent; }
-        }
+        @keyframes rowFlashIn { 0% { background-color: #d1fae5; } 100% { background-color: transparent; } }
+        @keyframes rowFlashOut { 0% { background-color: #ffe4e6; } 100% { background-color: transparent; } }
         .flash-in { animation: rowFlashIn 1.4s ease-out; }
         .flash-out { animation: rowFlashOut 1.4s ease-out; }
-        #qrReader video { border-radius: 0.75rem; object-fit: cover; }
+        #barcodeReader video { border-radius: 0.75rem; width: 100% !important; object-fit: cover; }
         @media print {
             body * { visibility: hidden !important; }
             #printSheetArea, #printSheetArea * { visibility: visible !important; }
@@ -45,21 +39,7 @@
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans antialiased">
 
-    <!-- แถบบางด้านบนแจ้งว่าเป็นโหมดทดลอง (ไม่กระทบเว็บจริง) -->
-    <div class="bg-amber-50 border-b border-amber-200 text-amber-900 text-xs no-print">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-                <span class="px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-950 font-bold text-[11px]">โหมดทดลอง</span>
-                <span>แยกฐานข้อมูลจากเว็บหลัก 100% — เพิ่ม/ลบ/สแกนทดสอบได้โดยไม่กระทบข้อมูลจริง</span>
-            </div>
-            <div class="flex items-center gap-3">
-                <button type="button" onclick="resetSandboxData()" class="underline font-semibold hover:text-amber-950 cursor-pointer">รีเซ็ตข้อมูลทดลอง</button>
-                <a href="/" class="font-semibold text-slate-700 hover:text-blue-600">กลับเว็บเดิม</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Navbar / Header (หน้าตาเหมือนเว็บเดิม + เพิ่มปุ่มสแกน QR) -->
+    <!-- Navbar / Header (หน้าตา StockMaster เดิมเป๊ะๆ คลีนไม่มีแถบเหลือง + ปุ่มสแกนบาร์โค้ด) -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-20 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -78,7 +58,7 @@
                     </p>
                 </div>
 
-                <!-- ปุ่มสลับทีม (Team Switcher) -->
+                <!-- ปุ่มสลับทีม -->
                 <div class="ml-1 sm:ml-3 inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
                     <button id="tabTeam1" onclick="switchTeam('team1')" type="button" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-600 text-white shadow-sm cursor-pointer">
                         <i data-lucide="users" class="w-3.5 h-3.5"></i> ทีมน้ำพริก
@@ -100,9 +80,9 @@
                     <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-600"></i> ส่งออก Excel
                 </button>
 
-                <!-- ปุ่มใหม่: สแกน QR รับเข้า/เบิกออก -->
+                <!-- ปุ่มสแกนบาร์โค้ด -->
                 <button onclick="openScanModal()" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm cursor-pointer">
-                    <i data-lucide="qr-code" class="w-4 h-4"></i> สแกน QR
+                    <i data-lucide="scan-barcode" class="w-4 h-4"></i> สแกนบาร์โค้ด
                 </button>
 
                 <button onclick="openModal()" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm cursor-pointer">
@@ -114,7 +94,7 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
 
-        <!-- สรุปสถิติ 3 การ์ด (เหมือนเว็บเดิม) -->
+        <!-- สรุปสถิติ 3 การ์ด -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
@@ -147,7 +127,7 @@
             </div>
         </div>
 
-        <!-- แท็บคลังสินค้า และ แท็บประวัติ (เหมือนเว็บเดิม) -->
+        <!-- แท็บคลังสินค้า และ ประวัติความเคลื่อนไหว -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="flex items-center justify-between px-6 border-b border-slate-200">
                 <div class="flex items-center gap-6">
@@ -159,16 +139,16 @@
                     </button>
                 </div>
                 <button type="button" onclick="openPrintSheetModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 transition cursor-pointer">
-                    <i data-lucide="printer" class="w-3.5 h-3.5"></i> พิมพ์ป้าย QR
+                    <i data-lucide="printer" class="w-3.5 h-3.5"></i> พิมพ์ป้ายบาร์โค้ด
                 </button>
             </div>
 
-            <!-- เนื้อหาแท็บ 1: คลังสินค้า -->
+            <!-- แท็บ 1: คลังสินค้า -->
             <div id="tabProducts" class="p-6 space-y-4">
                 <div class="flex flex-col md:flex-row gap-3 items-center justify-between">
                     <div class="relative w-full md:w-96">
                         <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
-                        <input type="text" id="searchInput" oninput="onSearchInput()" placeholder="ค้นหาตามชื่อสินค้า, รหัส QR หรือ SKU/ขนาด..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" id="searchInput" oninput="onSearchInput()" placeholder="ค้นหาตามชื่อสินค้า, เลขบาร์โค้ด หรือ SKU/ขนาด..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="flex gap-2 w-full md:w-auto">
                         <select id="categoryFilter" onchange="renderTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
@@ -188,13 +168,12 @@
                     </div>
                 </div>
 
-                <!-- ตารางสินค้า (โครงสร้างเดิม + ไอคอน QR ในคอลัมน์การกระทำ) -->
                 <div class="overflow-x-auto rounded-lg border border-slate-200">
                     <table class="w-full text-left text-sm text-slate-600">
                         <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
                             <tr>
                                 <th class="px-4 py-3 text-center">รูปภาพ</th>
-                                <th class="px-4 py-3">ขนาด/SKU</th>
+                                <th class="px-4 py-3">ขนาด/SKU & บาร์โค้ด</th>
                                 <th class="px-4 py-3">ชื่อสินค้า</th>
                                 <th class="px-4 py-3">หมวดหมู่</th>
                                 <th class="px-4 py-3 text-center">คงเหลือ</th>
@@ -203,15 +182,13 @@
                             </tr>
                         </thead>
                         <tbody id="productTableBody" class="divide-y divide-slate-200">
-                            <tr>
-                                <td colspan="7" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูล...</td>
-                            </tr>
+                            <tr><td colspan="7" class="text-center py-8 text-slate-400">กำลังโหลดข้อมูล...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- เนื้อหาแท็บ 2: ประวัติ Logs -->
+            <!-- แท็บ 2: ประวัติ Logs -->
             <div id="tabLogs" class="p-6 hidden space-y-4">
                 <div class="overflow-x-auto rounded-lg border border-slate-200">
                     <table id="logsTable" class="w-full text-left text-sm text-slate-600">
@@ -226,9 +203,7 @@
                             </tr>
                         </thead>
                         <tbody id="logsTableBody" class="divide-y divide-slate-200">
-                            <tr>
-                                <td colspan="6" class="text-center py-8 text-slate-400">ไม่มีข้อมูลประวัติ</td>
-                            </tr>
+                            <tr><td colspan="6" class="text-center py-8 text-slate-400">ไม่มีข้อมูลประวัติ</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -237,18 +212,18 @@
     </main>
 
     <!-- ========================================================= -->
-    <!-- Modal ใหม่: หน้าต่างสแกน QR Code รับเข้า / เบิกออกทันที -->
+    <!-- Modal: สแกนบาร์โค้ดรับเข้า / เบิกออกทันที (รองรับกล้องมือถือ 1D/QR) -->
     <!-- ========================================================= -->
-    <div id="scanModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+    <div id="scanModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden no-print">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[94vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                        <i data-lucide="qr-code" class="w-4 h-4"></i>
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <i data-lucide="scan-barcode" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-slate-900">สแกน QR รับเข้า / เบิกออกทันที</h3>
-                        <p class="text-[11px] text-slate-500">เลือกโหมดแล้วสแกนด้วยกล้อง, เครื่องยิง QR หรือพิมพ์รหัส</p>
+                        <h3 class="text-base font-bold text-slate-900">สแกนบาร์โค้ดรับเข้า / เบิกออกทันที</h3>
+                        <p class="text-[11px] text-slate-500">ใช้กล้องมือถือ, เครื่องยิงบาร์โค้ด USB/Bluetooth หรือพิมพ์เลขบาร์โค้ด</p>
                     </div>
                 </div>
                 <button type="button" onclick="closeScanModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
@@ -256,25 +231,25 @@
                 </button>
             </div>
 
-            <!-- สลับโหมด รับเข้า (+) / เบิกออก (-) -->
+            <!-- สลับโหมด รับเข้า (+) / เบิกออก (−) -->
             <div class="grid grid-cols-2 gap-2.5">
                 <button id="modeInBtn" type="button" onclick="setScanMode('in')" class="p-3 rounded-xl border-2 text-left transition flex items-center justify-between cursor-pointer border-emerald-600 bg-emerald-50 text-emerald-900">
                     <div>
-                        <div class="text-sm font-bold">สแกนรับเข้า (+)</div>
+                        <div class="text-sm font-bold">ยิงรับเข้า (+)</div>
                         <div class="text-[11px] opacity-80">เพิ่มสต็อกทันที</div>
                     </div>
                     <span class="w-7 h-7 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center">+</span>
                 </button>
                 <button id="modeOutBtn" type="button" onclick="setScanMode('out')" class="p-3 rounded-xl border-2 text-left transition flex items-center justify-between cursor-pointer border-slate-200 bg-white text-slate-600">
                     <div>
-                        <div class="text-sm font-bold">สแกนเบิกออก (−)</div>
+                        <div class="text-sm font-bold">ยิงเบิกออก (−)</div>
                         <div class="text-[11px] opacity-80">ตัดสต็อกทันที</div>
                     </div>
                     <span class="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 font-bold flex items-center justify-center">−</span>
                 </button>
             </div>
 
-            <!-- จำนวนต่อการสแกน + เสียง -->
+            <!-- จำนวนต่อการยิง + เสียง -->
             <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                 <div class="flex items-center gap-1.5">
                     <span class="text-xs font-semibold text-slate-600">จำนวน/ครั้ง:</span>
@@ -288,32 +263,32 @@
                 </label>
             </div>
 
-            <!-- กล้องสแกน QR -->
+            <!-- กล้องส่องบาร์โค้ดมือถือ (กรอบแนวนอนสำหรับ 1D Barcode + QR) -->
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2.5">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2">
                     <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <i data-lucide="camera" class="w-4 h-4 text-blue-600"></i> กล้องสแกน QR Code
+                        <i data-lucide="camera" class="w-4 h-4 text-blue-600"></i> กล้องสแกนบาร์โค้ด
                     </span>
                     <div class="flex items-center gap-1.5">
-                        <label class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
+                        <label class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
                             <i data-lucide="image-up" class="w-3.5 h-3.5 text-blue-600"></i> จากรูปภาพ
-                            <input id="qrImageUpload" type="file" accept="image/*" onchange="scanQrFromImageFile(event)" class="hidden">
+                            <input type="file" accept="image/*" onchange="scanBarcodeFromImage(event)" class="hidden">
                         </label>
-                        <button id="startCamBtn" type="button" onclick="startCameraScanner()" class="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
+                        <button id="startCamBtn" type="button" onclick="startCameraScanner()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
                             <i data-lucide="video" class="w-3.5 h-3.5"></i> เปิดกล้อง
                         </button>
-                        <button id="stopCamBtn" type="button" onclick="stopCameraScanner()" class="hidden inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer">
+                        <button id="stopCamBtn" type="button" onclick="stopCameraScanner()" class="hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer">
                             <i data-lucide="video-off" class="w-3.5 h-3.5"></i> ปิดกล้อง
                         </button>
                     </div>
                 </div>
-                <div id="qrReader" class="hidden w-full overflow-hidden rounded-xl bg-black"></div>
-                <div id="cameraStatus" class="text-[11px] text-slate-500 text-center">กด "เปิดกล้อง" เพื่อสแกนต่อเนื่อง หรือยิงด้วยเครื่องสแกนด้านล่าง</div>
+                <div id="barcodeReader" class="hidden w-full overflow-hidden rounded-xl bg-black"></div>
+                <div id="cameraStatus" class="text-[11px] text-slate-500 text-center">กด "เปิดกล้อง" แล้ววางแถบบาร์โค้ดในแนวนอนให้ชัดอยู่ในกรอบ (ห่าง ~15-20 ซม.)</div>
             </div>
 
-            <!-- ช่องยิง QR / พิมพ์รหัส -->
+            <!-- ช่องเครื่องยิงบาร์โค้ด USB / Bluetooth -->
             <form onsubmit="handleManualScanSubmit(event)" class="flex gap-2">
-                <input id="qrManualInput" type="text" autocomplete="off" placeholder="ยิงเครื่องสแกน QR หรือพิมพ์รหัส เช่น SM-NP-001 แล้วกด Enter..." class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input id="barcodeManualInput" type="text" autocomplete="off" placeholder="ยิงเครื่องสแกนบาร์โค้ด หรือพิมพ์รหัสแล้วกด Enter..." class="flex-1 px-3 py-2 border-2 border-blue-200 focus:border-blue-500 rounded-lg text-sm font-mono focus:outline-none">
                 <button id="scanSubmitBtn" type="submit" class="px-4 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer shrink-0">
                     รับเข้าทันที
                 </button>
@@ -330,7 +305,7 @@
         </div>
     </div>
 
-    <!-- Modal เพิ่ม / แก้ไขสินค้า (แบบเดิม + เพิ่มช่องรหัส QR) -->
+    <!-- Modal เพิ่ม / แก้ไขสินค้า -->
     <div id="productModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b pb-3">
@@ -340,52 +315,42 @@
                 </button>
             </div>
 
-            <div id="newQrHint" class="hidden rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
-                สแกนพบรหัส QR ใหม่ที่ยังไม่มีในระบบ กรอกชื่อสินค้าและจำนวนด้านล่างเพื่อเพิ่มเข้าสต็อกทันที
+            <div id="newBarcodeHint" class="hidden rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
+                สแกนพบบาร์โค้ดใหม่ที่ยังไม่มีในระบบ กรอกชื่อสินค้าและจำนวนด้านล่างเพื่อเพิ่มเข้าสต็อกทันที
             </div>
 
             <form id="productForm" onsubmit="handleFormSubmit(event)" class="space-y-3">
-                <!-- รหัส QR Code -->
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">รหัส QR Code (เว้นว่างเพื่อให้ระบบสร้างอัตโนมัติ)</label>
-                    <input type="text" id="formQrCode" placeholder="เช่น SM-NP-009 หรือรหัสที่สแกนจากกล่อง" class="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-xs font-medium text-slate-700 mb-1">เลขบาร์โค้ด (ยิงใส่ช่องนี้ หรือเว้นว่างให้ระบบสร้างอัตโนมัติ)</label>
+                    <input type="text" id="formBarcode" placeholder="เช่น 8851001001099 หรือยิงจากกล่องสินค้า" class="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
-                <!-- ส่วนรูปภาพ -->
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">
-                        รูปภาพสินค้า <span class="text-slate-400">(ใส่หรือเว้นว่างก็ได้)</span>
-                    </label>
-                    <div id="imageDropZone" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-3 bg-slate-50 flex items-center gap-3 transition">
+                    <label class="block text-xs font-medium text-slate-700 mb-1">รูปภาพสินค้า <span class="text-slate-400">(ใส่หรือเว้นว่างก็ได้)</span></label>
+                    <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-3 bg-slate-50 flex items-center gap-3 transition">
                         <div id="imagePreviewBox" class="w-16 h-16 border border-slate-200 rounded-lg bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
                             <i data-lucide="image" class="w-6 h-6 text-slate-300"></i>
                         </div>
                         <div class="flex-1">
-                            <p class="text-xs font-medium text-slate-700">
-                                กด <span class="text-blue-600 font-bold bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200">Ctrl + V</span> วางรูปภาพได้เลย
-                            </p>
-                            <p class="text-[11px] text-slate-400 mt-0.5">หรือคลิกปุ่มเพื่อเลือกไฟล์จากเครื่อง</p>
-                            <input type="file" id="formImageFile" accept="image/*" onchange="handleImageUpload(event)" class="mt-1 text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[11px] file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                            <p class="text-xs font-medium text-slate-700">กด <span class="text-blue-600 font-bold bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200">Ctrl + V</span> วางรูปภาพได้เลย</p>
+                            <input type="file" id="formImageFile" accept="image/*" onchange="handleImageUpload(event)" class="mt-1 text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[11px] file:bg-blue-600 file:text-white cursor-pointer">
                         </div>
                     </div>
                 </div>
 
-                <!-- ขนาดสินค้า / SKU -->
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">ขนาดสินค้า / SKU</label>
-                    <input type="text" id="formSize" placeholder="เช่น เล็ก, กลาง, จัมโบ้ หรือ 01" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="formSize" placeholder="เช่น เล็ก, กลาง, จัมโบ้ หรือ 150g" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
-                <!-- ชื่อสินค้า -->
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">ชื่อสินค้า <span class="text-rose-500">*</span></label>
                     <input type="text" id="formName" required placeholder="เช่น น้ำพริกอ่อง" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
-                <!-- หมวดหมู่ -->
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">หมวดหมู่ <span class="text-rose-500">*</span></label>
-                    <select id="formCategory" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <select id="formCategory" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="น้ำพริก">น้ำพริก</option>
                         <option value="ของสด">ของสด</option>
                         <option value="ของแห้ง">ของแห้ง</option>
@@ -394,7 +359,6 @@
                     </select>
                 </div>
 
-                <!-- สต็อกและจุดเตือน -->
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">จำนวนคงเหลือ <span class="text-rose-500">*</span></label>
@@ -407,249 +371,112 @@
                 </div>
 
                 <div class="flex items-center justify-end gap-2 pt-3 border-t">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer">ยกเลิก</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition cursor-pointer">บันทึกข้อมูล</button>
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">ยกเลิก</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer">บันทึกข้อมูล</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal ดู / ดาวน์โหลด QR Code รายสินค้า -->
-    <div id="qrStickerModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
+    <!-- Modal ดูและดาวน์โหลดป้ายบาร์โค้ดรายสินค้า (Code 128) -->
+    <div id="barcodeStickerModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
             <div class="flex items-center justify-between border-b pb-3">
-                <h3 class="text-base font-bold text-slate-900">QR Code สินค้า</h3>
-                <button type="button" onclick="closeQrStickerModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <h3 class="text-base font-bold text-slate-900">ป้ายบาร์โค้ดสินค้า (Code 128)</h3>
+                <button type="button" onclick="closeStickerModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div>
-                <label class="block text-[11px] font-semibold text-slate-500 mb-1">รูปแบบข้อมูลใน QR</label>
-                <select id="qrPayloadTypeSelect" onchange="renderActiveQrSticker()" class="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-lg bg-slate-50">
-                    <option value="url" selected>ลิงก์เว็บ (แนะนำ — ใช้ได้ทั้งกล้องมือถือธรรมดา, LINE และกล้องในเว็บ)</option>
-                    <option value="url_out">ลิงก์เบิกออกทันที (-1 อัตโนมัติเมื่อเปิด)</option>
-                    <option value="url_in">ลิงก์รับเข้าทันที (+1 อัตโนมัติเมื่อเปิด)</option>
-                    <option value="code">รหัสสั้นอย่างเดียว (สำหรับเครื่องยิงบาร์โค้ด / กล้องในเว็บ)</option>
-                </select>
-            </div>
-            <div class="border border-slate-200 rounded-2xl p-4 bg-white text-center space-y-2">
-                <canvas id="qrStickerCanvas" width="210" height="210" class="mx-auto"></canvas>
-                <div id="qrStickerName" class="text-sm font-bold text-slate-900"></div>
-                <div id="qrStickerSub" class="text-xs text-slate-500"></div>
-                <div id="qrStickerCodeText" class="text-xs font-mono font-bold text-slate-700 bg-slate-100 inline-block px-2.5 py-0.5 rounded"></div>
+            <div class="border-2 border-dashed border-slate-300 rounded-2xl p-4 bg-white text-center space-y-2">
+                <div id="stickerName" class="text-sm font-bold text-slate-900"></div>
+                <div id="stickerSub" class="text-xs text-slate-500"></div>
+                <canvas id="stickerCanvas" class="mx-auto max-w-full"></canvas>
+                <div id="stickerCodeText" class="text-sm font-mono font-bold tracking-widest text-slate-900"></div>
             </div>
             <div class="grid grid-cols-2 gap-2">
-                <button type="button" onclick="downloadActiveQrPng()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold cursor-pointer">ดาวน์โหลด PNG</button>
-                <button type="button" onclick="simulateScanFromModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer">ทดลองสแกนรหัสนี้</button>
+                <button type="button" onclick="downloadActiveBarcodePng()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold cursor-pointer">ดาวน์โหลด PNG</button>
+                <button type="button" onclick="simulateScanFromModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer">ทดลองยิงบาร์โค้ดนี้</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal เมื่อเปิดผ่านลิงก์ QR จากกล้องมือถือ (?qr=...) -->
-    <div id="deepLinkModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between">
-                <span class="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold">เปิดจากการสแกน QR</span>
-                <button type="button" onclick="closeDeepLinkModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <div>
-                <h3 id="dlName" class="text-lg font-bold text-slate-900"></h3>
-                <p id="dlMeta" class="text-xs text-slate-500"></p>
-            </div>
-            <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500">คงเหลือปัจจุบัน</span>
-                <span id="dlQty" class="text-2xl font-bold text-slate-900">0</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <label class="text-xs font-semibold text-slate-600">จำนวน:</label>
-                <input id="dlAmount" type="number" min="1" value="1" class="w-20 px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-center">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <button type="button" onclick="executeDeepLinkAction('in')" class="py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold cursor-pointer">+ รับเข้าทันที</button>
-                <button type="button" onclick="executeDeepLinkAction('out')" class="py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold cursor-pointer">− เบิกออกทันที</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal แผ่นพิมพ์ป้าย QR ทั้งหมด -->
+    <!-- Modal แผ่นพิมพ์ป้ายบาร์โค้ดทั้งหมด -->
     <div id="printSheetModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-            <div class="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 no-print">
-                <h3 class="text-base font-bold text-slate-900">แผ่นพิมพ์ป้าย QR Code</h3>
+            <div class="p-4 border-b border-slate-200 flex items-center justify-between gap-2 no-print">
+                <h3 class="text-base font-bold text-slate-900">แผ่นพิมพ์ป้ายบาร์โค้ด (สติกเกอร์ A4 / เครื่องพิมพ์ความร้อน)</h3>
                 <div class="flex items-center gap-2">
-                    <select id="sheetPayloadType" onchange="buildPrintSheet()" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white">
-                        <option value="url" selected>ลิงก์เว็บ (สแกนด้วยกล้องมือถือ / LINE ได้)</option>
-                        <option value="code">รหัสสั้นอย่างเดียว</option>
-                    </select>
                     <button type="button" onclick="window.print()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold cursor-pointer">สั่งพิมพ์</button>
                     <button type="button" onclick="closePrintSheetModal()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer">ปิด</button>
                 </div>
             </div>
-            <div id="printSheetArea" class="p-5 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 bg-slate-50"></div>
+            <div id="printSheetArea" class="p-5 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 bg-slate-50"></div>
         </div>
     </div>
 
     <script>
         // ============================================================
-        // Pure-JS ISO/IEC 18004 QR Code Generator
+        // ISO/IEC 15417 Code-128B Barcode Generator (Pure JS, Real Scannable!)
         // ============================================================
-        const QRGen = (() => {
-            const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
-            let x = 1;
-            for (let i = 0; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11d; }
-            for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
-            const gfMul = (a, b) => (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]];
-            function rsGen(d) {
-                let p = [1];
-                for (let i = 0; i < d; i++) {
-                    const n = new Array(p.length + 1).fill(0);
-                    for (let j = 0; j < p.length; j++) { n[j] ^= p[j]; n[j + 1] ^= gfMul(p[j], EXP[i]); }
-                    p = n;
-                }
-                return p;
-            }
-            function rsRem(data, ec) {
-                const g = rsGen(ec), r = new Uint8Array(ec);
-                for (let i = 0; i < data.length; i++) {
-                    const f = data[i] ^ r[0]; r.copyWithin(0, 1); r[ec - 1] = 0;
-                    for (let j = 0; j < ec; j++) r[j] ^= gfMul(g[j + 1], f);
-                }
-                return r;
-            }
-            const VER_M = [
-                null, [26,10,1,16,0,0], [44,16,1,28,0,0], [70,26,1,44,0,0], [100,18,2,32,0,0],
-                [134,24,2,43,0,0], [172,16,4,27,0,0], [196,18,4,31,0,0], [242,22,2,38,2,39],
-                [292,22,3,36,2,37], [346,26,4,43,1,44]
+        const Barcode128 = (() => {
+            const PAT = [
+                '212222','222122','222221','121223','121322','131222','122213','122312','132212','221213',
+                '221312','231212','112232','122132','122231','113222','123122','123221','223211','221132',
+                '221231','213212','223112','312131','311222','321122','321221','312212','322112','322211',
+                '212123','212321','232121','111323','131123','131321','112313','132113','132311','211313',
+                '231113','231311','112133','112331','132131','113123','113321','133121','313121','211331',
+                '231131','213113','213311','213131','311123','311321','331121','312113','312311','332111',
+                '314111','221411','431111','111224','111422','121124','121421','141122','141221','112214',
+                '112412','122114','122411','142112','142211','241211','221114','413111','241112','134111',
+                '111242','121142','121241','114212','124112','124211','411212','421112','421211','212141',
+                '214121','412121','111143','111341','131141','114113','114311','411113','411311','113141',
+                '114131','311141','411131','211412','211214','211232','2331112'
             ];
-            const ALIGN = [[],[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
-            const VER_BITS = { 7: 0x07C94, 8: 0x085BC, 9: 0x09A99, 10: 0x0A4D3 };
-
-            function encode(text) {
-                const bytes = new TextEncoder().encode(String(text));
-                let ver = 1;
-                while (ver <= 10) {
-                    const cfg = VER_M[ver];
-                    const tot = cfg[2] * cfg[3] + cfg[4] * cfg[5];
-                    const cb = ver <= 9 ? 8 : 16;
-                    if (bytes.length <= Math.floor((tot * 8 - 4 - cb) / 8)) break;
-                    ver++;
+            function encodeWidths(raw) {
+                const text = String(raw || '').replace(/[^\x20-\x7E]/g, '') || '000000';
+                const codes = [104];
+                let sum = 104;
+                for (let i = 0; i < text.length; i++) {
+                    const v = text.charCodeAt(i) - 32;
+                    codes.push(v); sum += v * (i + 1);
                 }
-                if (ver > 10) ver = 10;
-                const [, ecLen, b1, d1, b2, d2] = VER_M[ver];
-                const totalData = b1 * d1 + b2 * d2;
-                const bits = [];
-                const push = (v, l) => { for (let i = l - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
-                push(0b0100, 4); push(bytes.length, ver <= 9 ? 8 : 16);
-                for (const b of bytes) push(b, 8);
-                const maxBits = totalData * 8;
-                for (let i = 0; i < 4 && bits.length < maxBits; i++) bits.push(0);
-                while (bits.length % 8) bits.push(0);
-                const dataCw = [];
-                for (let i = 0; i < bits.length; i += 8) {
-                    let v = 0; for (let j = 0; j < 8; j++) v = (v << 1) | bits[i + j];
-                    dataCw.push(v);
-                }
-                let pi = 0; while (dataCw.length < totalData) dataCw.push((pi++ & 1) ? 0x11 : 0xEC);
-                const dBlks = [], eBlks = [];
-                let off = 0;
-                for (let i = 0; i < b1; i++) { const bl = dataCw.slice(off, off + d1); off += d1; dBlks.push(bl); eBlks.push(rsRem(bl, ecLen)); }
-                for (let i = 0; i < b2; i++) { const bl = dataCw.slice(off, off + d2); off += d2; dBlks.push(bl); eBlks.push(rsRem(bl, ecLen)); }
-                const cw = [];
-                for (let i = 0; i < Math.max(d1, d2); i++) for (const bl of dBlks) if (i < bl.length) cw.push(bl[i]);
-                for (let i = 0; i < ecLen; i++) for (const ec of eBlks) cw.push(ec[i]);
-
-                const size = ver * 4 + 17;
-                const mat = Array.from({ length: size }, () => new Uint8Array(size));
-                const fn = Array.from({ length: size }, () => new Uint8Array(size));
-                const setF = (r, c, v) => { if (r >= 0 && r < size && c >= 0 && c < size) { mat[r][c] = v ? 1 : 0; fn[r][c] = 1; } };
-                const finder = (cr, cc) => {
-                    for (let dr = -4; dr <= 4; dr++) for (let dc = -4; dc <= 4; dc++) {
-                        const r = cr + dr, c = cc + dc;
-                        if (r < 0 || r >= size || c < 0 || c >= size) continue;
-                        const d = Math.max(Math.abs(dr), Math.abs(dc));
-                        setF(r, c, d !== 2 && d !== 4);
-                    }
-                };
-                finder(3, 3); finder(3, size - 4); finder(size - 4, 3);
-                for (const r of ALIGN[ver]) for (const c of ALIGN[ver]) {
-                    if (fn[r][c]) continue;
-                    for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) setF(r + dr, c + dc, Math.max(Math.abs(dr), Math.abs(dc)) !== 1);
-                }
-                for (let i = 8; i < size - 8; i++) { if (!fn[6][i]) setF(6, i, i % 2 === 0); if (!fn[i][6]) setF(i, 6, i % 2 === 0); }
-                setF(size - 8, 8, 1);
-                for (let i = 0; i < 9; i++) if (i !== 6) { fn[8][i] = 1; fn[i][8] = 1; }
-                for (let i = 0; i < 8; i++) { fn[8][size - 1 - i] = 1; fn[size - 1 - i][8] = 1; }
-                if (ver >= 7) {
-                    const vb = VER_BITS[ver];
-                    for (let i = 0; i < 18; i++) {
-                        const b = (vb >>> i) & 1, a = Math.floor(i / 3), col = size - 11 + (i % 3);
-                        setF(a, col, b); setF(col, a, b);
-                    }
-                }
-                let bi = 0; const totalBits = cw.length * 8;
-                for (let right = size - 1; right >= 1; right -= 2) {
-                    if (right === 6) right = 5;
-                    const up = ((right + 1) & 2) === 0;
-                    for (let vert = 0; vert < size; vert++) {
-                        const r = up ? size - 1 - vert : vert;
-                        for (let j = 0; j < 2; j++) {
-                            const c = right - j;
-                            if (!fn[r][c]) {
-                                let b = 0; if (bi < totalBits) { b = (cw[bi >>> 3] >>> (7 - (bi & 7))) & 1; bi++; }
-                                mat[r][c] = b;
-                            }
-                        }
-                    }
-                }
-                const masks = [
-                    (r,c)=>(r+c)%2===0, (r,c)=>r%2===0, (r,c)=>c%3===0, (r,c)=>(r+c)%3===0,
-                    (r,c)=>(Math.floor(r/2)+Math.floor(c/3))%2===0, (r,c)=>((r*c)%2+(r*c)%3)===0,
-                    (r,c)=>(((r*c)%2+(r*c)%3)%2)===0, (r,c)=>(((r+c)%2+(r*c)%3)%2)===0
-                ];
-                const fmt = (m) => { let rem = m; for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537); return ((m << 10) | rem) ^ 0x5412; };
-                const apply = (m) => {
-                    const out = mat.map(r => new Uint8Array(r));
-                    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (!fn[r][c] && masks[m](r, c)) out[r][c] ^= 1;
-                    const fb = fmt(m);
-                    for (let i = 0; i <= 5; i++) out[8][i] = (fb >>> (14 - i)) & 1;
-                    out[8][7] = (fb >>> 8) & 1; out[8][8] = (fb >>> 7) & 1; out[7][8] = (fb >>> 6) & 1;
-                    for (let i = 9; i < 15; i++) out[14 - i][8] = (fb >>> (14 - i)) & 1;
-                    for (let i = 0; i < 8; i++) out[8][size - 1 - i] = (fb >>> i) & 1;
-                    for (let i = 0; i < 7; i++) out[size - 1 - i][8] = (fb >>> (14 - i)) & 1;
-                    out[size - 8][8] = 1;
-                    return out;
-                };
-                const pen = (m) => {
-                    let s = 0;
-                    for (let r = 0; r < size; r++) { let k = 1; for (let c = 1; c < size; c++) { if (m[r][c] === m[r][c-1]) { k++; if (k===5) s+=3; else if (k>5) s++; } else k=1; } }
-                    for (let c = 0; c < size; c++) { let k = 1; for (let r = 1; r < size; r++) { if (m[r][c] === m[r-1][c]) { k++; if (k===5) s+=3; else if (k>5) s++; } else k=1; } }
-                    return s;
-                };
-                let best = null, bs = Infinity;
-                for (let m = 0; m < 8; m++) { const cand = apply(m); const sc = pen(cand); if (sc < bs) { bs = sc; best = cand; } }
-                return { size, modules: best };
+                codes.push(sum % 103); codes.push(106);
+                return codes.map(c => PAT[c]).join('');
             }
-            function drawToCanvas(canvas, text, px = 210) {
-                const { size, modules } = encode(text);
-                const q = 3, tot = size + q * 2, sc = Math.max(2, Math.floor(px / tot)), dim = tot * sc;
-                canvas.width = dim; canvas.height = dim;
+            function toSvg(text, height = 44) {
+                const widths = encodeWidths(text);
+                const quiet = 10;
+                let x = quiet, rects = '';
+                for (let i = 0; i < widths.length; i++) {
+                    const w = Number(widths[i]);
+                    if (i % 2 === 0) rects += `<rect x="${x}" y="0" width="${w}" height="${height}"/>`;
+                    x += w;
+                }
+                const totalW = x + quiet;
+                return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${height}" class="w-full h-11" preserveAspectRatio="none" shape-rendering="crispEdges"><rect width="${totalW}" height="${height}" fill="#ffffff"/><g fill="#0f172a">${rects}</g></svg>`;
+            }
+            function drawCanvas(canvas, text, barH = 74, modW = 2) {
+                const widths = encodeWidths(text);
+                const quiet = 12 * modW;
+                let totalMods = 0;
+                for (let i = 0; i < widths.length; i++) totalMods += Number(widths[i]);
+                canvas.width = totalMods * modW + quiet * 2;
+                canvas.height = barH + 16;
                 const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, dim, dim);
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#0f172a';
-                for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (modules[r][c]) ctx.fillRect((c+q)*sc, (r+q)*sc, sc, sc);
+                let x = quiet;
+                for (let i = 0; i < widths.length; i++) {
+                    const w = Number(widths[i]) * modW;
+                    if (i % 2 === 0) ctx.fillRect(x, 8, w, barH);
+                    x += w;
+                }
             }
-            function toSvg(text, px = 115) {
-                const { size, modules } = encode(text);
-                const q = 2, tot = size + q * 2;
-                let rects = '';
-                for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (modules[r][c]) rects += `<rect x="${c+q}" y="${r+q}" width="1" height="1"/>`;
-                return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${tot} ${tot}" shape-rendering="crispEdges"><rect width="${tot}" height="${tot}" fill="#ffffff"/><g fill="#0f172a">${rects}</g></svg>`;
-            }
-            return { drawToCanvas, toSvg };
+            return { toSvg, drawCanvas };
         })();
 
         // ============================================================
-        // App Logic (เชื่อมต่อเฉพาะ /api/lab — ไม่แตะเว็บหลัก)
+        // App Logic (เชื่อมต่อเฉพาะ /api/lab — แยกจากเว็บเดิม 100%)
         // ============================================================
         const API_BASE = '/api/lab';
         let products = [];
@@ -659,8 +486,7 @@
         let searchDebounceTimer = null;
         let currentDataVersion = '';
         let scanMode = 'in';
-        let activeQrProduct = null;
-        let deepLinkProduct = null;
+        let activeStickerProduct = null;
         let html5Scanner = null;
         let isCameraRunning = false;
         let lastScannedCode = '';
@@ -669,27 +495,15 @@
         let currentTeam = new URLSearchParams(window.location.search).get('team') || localStorage.getItem('stockmaster_lab_team') || 'team1';
         if (currentTeam !== 'team1' && currentTeam !== 'team2') currentTeam = 'team1';
 
-        function getTeamDisplayName(t = currentTeam) {
-            return t === 'team2' ? 'ทีมมหาเทพ' : 'ทีมน้ำพริก';
-        }
-
-        function escapeHtml(s) {
-            return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-        }
-        function escapeAttr(s) {
-            return String(s || '').replace(/['"\\]/g, '');
-        }
+        function getTeamDisplayName(t = currentTeam) { return t === 'team2' ? 'ทีมมหาเทพ' : 'ทีมน้ำพริก'; }
+        function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
         function sortProductsThai(list) {
             if (!Array.isArray(list)) return [];
             return list.sort((a, b) => {
-                const nameA = (a && a.name) ? String(a.name).trim() : '';
-                const nameB = (b && b.name) ? String(b.name).trim() : '';
-                const comp = nameA.localeCompare(nameB, 'th');
+                const comp = String(a?.name || '').trim().localeCompare(String(b?.name || '').trim(), 'th');
                 if (comp !== 0) return comp;
-                const sizeA = (a && (a.size || a.sku)) ? String(a.size || a.sku).trim() : '';
-                const sizeB = (b && (b.size || b.sku)) ? String(b.size || b.sku).trim() : '';
-                return sizeA.localeCompare(sizeB, 'th', { numeric: true });
+                return String(a?.size || a?.sku || '').localeCompare(String(b?.size || b?.sku || ''), 'th', { numeric: true });
             });
         }
 
@@ -701,29 +515,18 @@
                 const osc = ctx.createOscillator(), gain = ctx.createGain();
                 osc.connect(gain); gain.connect(ctx.destination);
                 const now = ctx.currentTime;
-                if (type === 'in') {
-                    osc.frequency.setValueAtTime(880, now); osc.frequency.setValueAtTime(1180, now + 0.07);
-                    gain.gain.setValueAtTime(0.14, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-                    osc.start(now); osc.stop(now + 0.18);
-                } else if (type === 'out') {
-                    osc.frequency.setValueAtTime(740, now); osc.frequency.setValueAtTime(520, now + 0.07);
-                    gain.gain.setValueAtTime(0.14, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-                    osc.start(now); osc.stop(now + 0.18);
-                } else {
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, now);
-                    gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
-                    osc.start(now); osc.stop(now + 0.24);
-                }
+                if (type === 'in') { osc.frequency.setValueAtTime(1050, now); osc.frequency.setValueAtTime(1400, now + 0.05); }
+                else if (type === 'out') { osc.frequency.setValueAtTime(820, now); osc.frequency.setValueAtTime(580, now + 0.05); }
+                else { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, now); }
+                gain.gain.setValueAtTime(0.14, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+                osc.start(now); osc.stop(now + 0.16);
+                if (navigator.vibrate) navigator.vibrate(type === 'error' ? [80, 40, 80] : 50);
             } catch (e) {}
         }
 
         function showToast(message, isError = false) {
             let toast = document.getElementById('toastNotification');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'toastNotification';
-                document.body.appendChild(toast);
-            }
+            if (!toast) { toast = document.createElement('div'); toast.id = 'toastNotification'; document.body.appendChild(toast); }
             toast.className = `fixed top-5 right-5 z-[60] px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-white text-sm font-semibold transition-all duration-300 ${isError ? 'bg-rose-600' : 'bg-emerald-600'}`;
             toast.textContent = isError ? `⚠️ ${message}` : `✓ ${message}`;
             toast.style.opacity = '1';
@@ -732,8 +535,7 @@
         }
 
         function updateTeamButtonsUI() {
-            const btn1 = document.getElementById('tabTeam1');
-            const btn2 = document.getElementById('tabTeam2');
+            const btn1 = document.getElementById('tabTeam1'), btn2 = document.getElementById('tabTeam2');
             document.getElementById('teamHeaderSubtitle').innerText = `(${getTeamDisplayName()})`;
             if (currentTeam === 'team2') {
                 btn1.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer";
@@ -751,8 +553,7 @@
             localStorage.setItem('stockmaster_lab_team', currentTeam);
             currentDataVersion = '';
             updateTeamButtonsUI();
-            fetchProducts();
-            fetchLogs();
+            fetchProducts(); fetchLogs();
             showToast(`สลับไป ${getTeamDisplayName()} เรียบร้อยแล้ว`);
         }
 
@@ -760,20 +561,18 @@
             try {
                 const res = await fetch(`${API_BASE}/products?team=${currentTeam}&t=${Date.now()}`);
                 if (!res.ok) return;
-                const data = await res.json();
-                products = sortProductsThai(Array.isArray(data) ? data : []);
+                products = sortProductsThai(await res.json());
                 renderDashboard();
-            } catch (err) { console.error(err); }
+            } catch (e) {}
         }
 
         async function fetchLogs() {
             try {
                 const res = await fetch(`${API_BASE}/logs?team=${currentTeam}&t=${Date.now()}`);
                 if (!res.ok) return;
-                const data = await res.json();
-                logs = Array.isArray(data) ? data : [];
+                logs = await res.json();
                 renderLogsTable();
-            } catch (err) { console.error(err); }
+            } catch (e) {}
         }
 
         async function checkDataHeartbeat() {
@@ -790,78 +589,60 @@
         }
 
         function renderStats() {
-            const totalItems = products.length;
-            const totalStock = products.reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
-            const lowStock = products.filter(p => (Number(p.quantity) || 0) <= (Number(p.minStock) || 0)).length;
-            document.getElementById('statTotalItems').innerText = totalItems.toLocaleString('th-TH');
-            document.getElementById('statTotalStock').innerText = totalStock.toLocaleString('th-TH');
-            document.getElementById('statLowStock').innerText = lowStock.toLocaleString('th-TH');
+            document.getElementById('statTotalItems').innerText = products.length.toLocaleString('th-TH');
+            document.getElementById('statTotalStock').innerText = products.reduce((a, p) => a + (Number(p.quantity) || 0), 0).toLocaleString('th-TH');
+            document.getElementById('statLowStock').innerText = products.filter(p => (Number(p.quantity) || 0) <= (Number(p.minStock) || 0)).length.toLocaleString('th-TH');
         }
 
-        function onSearchInput() {
-            clearTimeout(searchDebounceTimer);
-            searchDebounceTimer = setTimeout(renderTable, 40);
-        }
+        function onSearchInput() { clearTimeout(searchDebounceTimer); searchDebounceTimer = setTimeout(renderTable, 40); }
 
         function renderTable() {
             const tbody = document.getElementById('productTableBody');
             const search = document.getElementById('searchInput').value.toLowerCase().trim();
             const cat = document.getElementById('categoryFilter').value;
-            const stockFilter = document.getElementById('stockFilter').value;
+            const sf = document.getElementById('stockFilter').value;
 
             const filtered = products.filter(p => {
-                const name = (p.name || '').toLowerCase();
-                const size = (p.size || p.sku || '').toLowerCase();
-                const qr = (p.qrCode || '').toLowerCase();
-                const matchSearch = !search || name.includes(search) || size.includes(search) || qr.includes(search);
-                const matchCat = !cat || p.category === cat;
-                const qty = Number(p.quantity) || 0;
-                const min = Number(p.minStock) || 0;
-                let matchStock = true;
-                if (stockFilter === 'normal') matchStock = qty > min;
-                else if (stockFilter === 'low') matchStock = qty <= min && qty > 0;
-                else if (stockFilter === 'out') matchStock = qty === 0;
-                return matchSearch && matchCat && matchStock;
+                const matchS = !search || (p.name || '').toLowerCase().includes(search) || (p.size || p.sku || '').toLowerCase().includes(search) || (p.qrCode || '').toLowerCase().includes(search);
+                const matchC = !cat || p.category === cat;
+                const qty = Number(p.quantity) || 0, min = Number(p.minStock) || 0;
+                const matchF = sf === 'all' || (sf === 'normal' && qty > min) || (sf === 'low' && qty <= min && qty > 0) || (sf === 'out' && qty === 0);
+                return matchS && matchC && matchF;
             });
 
-            if (filtered.length === 0) {
+            if (!filtered.length) {
                 tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">ไม่พบข้อมูลสินค้าตรงตามเงื่อนไข</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = filtered.map(p => {
-                const qty = Number(p.quantity) || 0;
-                const min = Number(p.minStock) || 0;
+                const qty = Number(p.quantity) || 0, min = Number(p.minStock) || 0;
                 return `
                 <tr id="prod-row-${p.id}" class="hover:bg-slate-50 transition-colors">
                     <td class="px-4 py-3 text-center">
                         <div class="w-10 h-10 border border-slate-200 rounded-lg bg-slate-50 mx-auto overflow-hidden flex items-center justify-center">
-                            ${p.image ? `<img src="${p.image}" class="w-full h-full object-cover">` : `<svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path stroke-linecap="round" stroke-linejoin="round" d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`}
+                            ${p.image ? `<img src="${p.image}" class="w-full h-full object-cover">` : `<svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`}
                         </div>
                     </td>
-                    <td class="px-4 py-3 text-xs font-mono text-slate-600 font-medium">
-                        <div>${escapeHtml(p.size || p.sku || '-')}</div>
-                        <div class="text-[10px] text-slate-400">${escapeHtml(p.qrCode)}</div>
+                    <td class="px-4 py-3 text-xs">
+                        <div class="font-medium text-slate-700">${escapeHtml(p.size || p.sku || '-')}</div>
+                        <div class="font-mono text-[11px] text-slate-400">${escapeHtml(p.qrCode)}</div>
                     </td>
                     <td class="px-4 py-3 font-semibold text-slate-900">${escapeHtml(p.name || '-')}</td>
                     <td class="px-4 py-3"><span class="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded font-medium">${escapeHtml(p.category || '-')}</span></td>
                     <td class="px-4 py-3 text-center">
-                        <span id="qty-badge-${p.id}" class="px-2.5 py-0.5 text-xs rounded-full font-bold transition-colors ${qty <= min ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${qty}</span>
+                        <span class="px-2.5 py-0.5 text-xs rounded-full font-bold ${qty <= min ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${qty}</span>
                     </td>
                     <td class="px-4 py-3 text-center">
                         <div class="flex items-center justify-center gap-1.5">
-                            <button type="button" onclick="adjustStock(${p.id}, -1)" title="เบิกออก (-1)" class="w-7 h-7 flex items-center justify-center border border-slate-300 rounded-lg bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 active:scale-95 text-slate-700 transition cursor-pointer">
-                                <span class="text-base font-bold leading-none select-none pointer-events-none">−</span>
-                            </button>
-                            <button type="button" onclick="adjustStock(${p.id}, 1)" title="รับเข้า (+1)" class="w-7 h-7 flex items-center justify-center border border-slate-300 rounded-lg bg-white hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-300 active:scale-95 text-slate-700 transition cursor-pointer">
-                                <span class="text-base font-bold leading-none select-none pointer-events-none">+</span>
-                            </button>
+                            <button type="button" onclick="adjustStock(${p.id}, -1)" class="w-7 h-7 flex items-center justify-center border border-slate-300 rounded-lg bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 text-slate-700 font-bold cursor-pointer">−</button>
+                            <button type="button" onclick="adjustStock(${p.id}, 1)" class="w-7 h-7 flex items-center justify-center border border-slate-300 rounded-lg bg-white hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-300 text-slate-700 font-bold cursor-pointer">+</button>
                         </div>
                     </td>
                     <td class="px-4 py-3 text-center">
                         <div class="flex items-center justify-center gap-1.5">
-                            <button type="button" onclick="openQrStickerModal(${p.id})" title="ดูป้าย QR Code" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer">
-                                <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3h-3M14 20h7"/></svg>
+                            <button type="button" onclick="openStickerModal(${p.id})" title="ดูและพิมพ์บาร์โค้ด" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer">
+                                <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>
                             </button>
                             <button type="button" onclick="editProduct(${p.id})" title="แก้ไขสินค้า" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer">
                                 <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -877,25 +658,18 @@
 
         function renderLogsTable() {
             const tbody = document.getElementById('logsTableBody');
-            if (logs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการเคลื่อนไหว</td></tr>`;
-                return;
-            }
+            if (!logs.length) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">ยังไม่มีประวัติการเคลื่อนไหว</td></tr>`; return; }
             tbody.innerHTML = logs.map(l => {
-                const isIn = String(l.type || '').includes('รับเข้า');
-                const isOut = String(l.type || '').includes('เบิกออก');
+                const isIn = String(l.type || '').includes('รับเข้า'), isOut = String(l.type || '').includes('เบิกออก');
                 const badge = isIn ? 'bg-emerald-100 text-emerald-700' : isOut ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700';
                 const canUndo = (isIn || isOut) && Number(l.undone) !== 1 && l.productId;
-                return `
-                <tr class="hover:bg-slate-50 ${Number(l.undone) === 1 ? 'opacity-50' : ''}">
+                return `<tr class="hover:bg-slate-50 ${Number(l.undone) === 1 ? 'opacity-50' : ''}">
                     <td class="px-4 py-3 text-xs text-slate-500">${escapeHtml(l.date)}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">${escapeHtml(l.productName)}</td>
                     <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 text-xs rounded-full font-semibold ${badge}">${escapeHtml(l.type)}</span></td>
                     <td class="px-4 py-3 text-center font-bold text-slate-700">${l.amount}</td>
                     <td class="px-4 py-3 text-xs text-slate-500">${escapeHtml(l.note || '-')}</td>
-                    <td class="px-4 py-3 text-center">
-                        ${canUndo ? `<button type="button" onclick="undoLog(${l.id})" class="px-2 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 text-[11px] font-bold text-slate-700 cursor-pointer">↩ Undo</button>` : '-'}
-                    </td>
+                    <td class="px-4 py-3 text-center">${canUndo ? `<button type="button" onclick="undoLog(${l.id})" class="px-2 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 text-[11px] font-bold text-slate-700 cursor-pointer">↩ Undo</button>` : '-'}</td>
                 </tr>`;
             }).join('');
         }
@@ -903,18 +677,16 @@
         function renderDashboard() { renderStats(); renderTable(); }
 
         function switchTab(tab) {
-            const tabProducts = document.getElementById('tabProducts');
-            const tabLogs = document.getElementById('tabLogs');
-            const btnProducts = document.getElementById('tabProductsBtn');
-            const btnLogs = document.getElementById('tabLogsBtn');
+            const p = document.getElementById('tabProducts'), l = document.getElementById('tabLogs');
+            const bp = document.getElementById('tabProductsBtn'), bl = document.getElementById('tabLogsBtn');
             if (tab === 'products') {
-                tabProducts.classList.remove('hidden'); tabLogs.classList.add('hidden');
-                btnProducts.className = "py-4 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 cursor-pointer";
-                btnLogs.className = "py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center gap-2 cursor-pointer";
+                p.classList.remove('hidden'); l.classList.add('hidden');
+                bp.className = "py-4 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 cursor-pointer";
+                bl.className = "py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center gap-2 cursor-pointer";
             } else {
-                tabProducts.classList.add('hidden'); tabLogs.classList.remove('hidden');
-                btnLogs.className = "py-4 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 cursor-pointer";
-                btnProducts.className = "py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center gap-2 cursor-pointer";
+                p.classList.add('hidden'); l.classList.remove('hidden');
+                bl.className = "py-4 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 cursor-pointer";
+                bp.className = "py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center gap-2 cursor-pointer";
             }
         }
 
@@ -930,31 +702,25 @@
         }
 
         async function deleteProduct(id) {
-            if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบสินค้าทดลองรายการนี้?')) return;
+            if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบสินค้ารายการนี้?')) return;
             const res = await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
             if (res.ok) { showToast('ลบสินค้าเรียบร้อยแล้ว'); await fetchProducts(); }
         }
 
         // ============================================================
-        // Scan Modal & QR Scan Logic
+        // Scan Barcode Modal & Camera (Wide 1D Barcode Reticle!)
         // ============================================================
         function openScanModal() {
             document.getElementById('scanModal').classList.remove('hidden');
             setScanMode(scanMode);
             if (window.lucide) lucide.createIcons();
-            setTimeout(() => document.getElementById('qrManualInput').focus(), 80);
+            setTimeout(() => document.getElementById('barcodeManualInput').focus(), 80);
         }
-
-        function closeScanModal() {
-            stopCameraScanner();
-            document.getElementById('scanModal').classList.add('hidden');
-        }
+        function closeScanModal() { stopCameraScanner(); document.getElementById('scanModal').classList.add('hidden'); }
 
         function setScanMode(mode) {
             scanMode = mode === 'out' ? 'out' : 'in';
-            const inBtn = document.getElementById('modeInBtn');
-            const outBtn = document.getElementById('modeOutBtn');
-            const sub = document.getElementById('scanSubmitBtn');
+            const inBtn = document.getElementById('modeInBtn'), outBtn = document.getElementById('modeOutBtn'), sub = document.getElementById('scanSubmitBtn');
             if (scanMode === 'in') {
                 inBtn.className = 'p-3 rounded-xl border-2 text-left transition flex items-center justify-between cursor-pointer border-emerald-600 bg-emerald-50 text-emerald-900';
                 inBtn.querySelector('span').className = 'w-7 h-7 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center';
@@ -976,19 +742,18 @@
         function syncQtyPills() {
             const val = Number(document.getElementById('scanAmountInput').value) || 1;
             document.querySelectorAll('.qty-pill').forEach(btn => {
-                const active = Number(btn.dataset.qty) === val;
-                btn.className = active
-                    ? 'qty-pill px-2.5 py-1 rounded-md text-xs font-bold border border-blue-600 bg-blue-600 text-white cursor-pointer'
+                const a = Number(btn.dataset.qty) === val;
+                btn.className = a ? 'qty-pill px-2.5 py-1 rounded-md text-xs font-bold border border-blue-600 bg-blue-600 text-white cursor-pointer'
                     : 'qty-pill px-2.5 py-1 rounded-md text-xs font-bold border border-slate-300 bg-white text-slate-700 cursor-pointer';
             });
         }
 
-        async function executeQrScan(rawCode, options = {}) {
+        async function executeBarcodeScan(rawCode, options = {}) {
             const code = String(rawCode || '').trim();
             if (!code) return;
             const mode = options.mode || scanMode;
             const amount = Math.max(1, parseInt(options.amount || document.getElementById('scanAmountInput').value || '1', 10));
-            const source = options.source || 'สแกน QR';
+            const source = options.source || 'สแกนบาร์โค้ด';
 
             try {
                 const res = await fetch(`${API_BASE}/scan`, {
@@ -999,9 +764,8 @@
 
                 if (res.status === 404 && data.notFound) {
                     playBeep('error');
-                    showLastScanBanner('notfound', `พบรหัส QR ใหม่: ${data.qrCode}`, 'ยังไม่มีสินค้านี้ในคลัง — กรอกชื่อเพื่อเพิ่มเข้าสต็อกได้ทันที');
                     closeScanModal();
-                    openModalWithQr(data.qrCode, amount);
+                    openModalWithBarcode(data.qrCode, amount);
                     return;
                 }
                 if (!res.ok) {
@@ -1014,7 +778,7 @@
                 playBeep(mode);
                 const prod = data.product;
                 const msg = `${mode === 'in' ? 'รับเข้า' : 'เบิกออก'} ${data.amount} ชิ้น — ${prod.name} (${data.oldQuantity} → ${data.newQuantity})`;
-                showLastScanBanner(mode, msg, `รหัส ${prod.qrCode}${data.lowStock ? ' • สต็อกใกล้หมด!' : ''}`, data.logId);
+                showLastScanBanner(mode, msg, `บาร์โค้ด ${prod.qrCode}${data.lowStock ? ' • สต็อกใกล้หมด!' : ''}`, data.logId);
                 showToast(msg);
                 await Promise.all([fetchProducts(), fetchLogs()]);
                 flashProductRow(prod.id, mode);
@@ -1026,11 +790,10 @@
 
         function handleManualScanSubmit(e) {
             e.preventDefault();
-            const inp = document.getElementById('qrManualInput');
-            const code = inp.value.trim();
-            if (!code) return;
+            const inp = document.getElementById('barcodeManualInput');
+            const code = inp.value.trim(); if (!code) return;
             inp.value = '';
-            executeQrScan(code, { source: 'เครื่องยิง QR / พิมพ์รหัส' });
+            executeBarcodeScan(code, { source: 'เครื่องยิงบาร์โค้ด' });
             inp.focus();
         }
 
@@ -1039,8 +802,7 @@
             box.classList.remove('hidden');
             document.getElementById('lastScanTitle').textContent = title;
             document.getElementById('lastScanMeta').textContent = meta || '';
-            const act = document.getElementById('lastScanActions');
-            act.innerHTML = logId ? `<button type="button" onclick="undoLog(${logId})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer">↩ ยกเลิก</button>` : '';
+            document.getElementById('lastScanActions').innerHTML = logId ? `<button type="button" onclick="undoLog(${logId})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer">↩ ยกเลิก</button>` : '';
             box.className = type === 'in' ? 'rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex flex-wrap items-center justify-between gap-2'
                 : type === 'out' ? 'rounded-xl border border-rose-200 bg-rose-50 p-3 flex flex-wrap items-center justify-between gap-2'
                 : 'rounded-xl border border-amber-200 bg-amber-50 p-3 flex flex-wrap items-center justify-between gap-2';
@@ -1065,62 +827,49 @@
 
         async function startCameraScanner() {
             if (isCameraRunning) return;
-            const readerEl = document.getElementById('qrReader');
+            const readerEl = document.getElementById('barcodeReader');
             const status = document.getElementById('cameraStatus');
             if (!window.Html5Qrcode) {
-                status.textContent = 'กำลังโหลดตัวอ่านกล้องไม่สำเร็จ (ตรวจสอบอินเทอร์เน็ตแล้วรีเฟรชหน้าเว็บ)';
+                status.textContent = 'โหลดตัวอ่านกล้องไม่สำเร็จ กรุณารีเฟรชหน้าเว็บ';
                 return;
             }
             readerEl.classList.remove('hidden');
             status.textContent = 'กำลังเปิดกล้อง...';
             try {
-                html5Scanner = new Html5Qrcode('qrReader', {
+                html5Scanner = new Html5Qrcode('barcodeReader', {
                     experimentalFeatures: { useBarCodeDetectorIfSupported: true },
                     verbose: false
                 });
+                // กรอบสแกนแนวนอนกว้าง ออกแบบมาสำหรับบาร์โค้ด 1D (EAN-13, Code-128) บนมือถือโดยเฉพาะ
                 const config = {
-                    fps: 12,
-                    qrbox: (w, h) => {
-                        const s = Math.max(150, Math.floor(Math.min(w, h) * 0.72));
-                        return { width: s, height: s };
-                    }
+                    fps: 15,
+                    qrbox: (w, h) => ({
+                        width: Math.max(200, Math.floor(w * 0.85)),
+                        height: Math.max(95, Math.floor(h * 0.42))
+                    }),
+                    aspectRatio: 1.5
+                };
+                const onSuccess = (decodedText) => {
+                    const now = Date.now();
+                    if (decodedText === lastScannedCode && now - lastScannedAt < 1800) return;
+                    lastScannedCode = decodedText; lastScannedAt = now;
+                    status.textContent = `สแกนติดแล้ว: ${decodedText}`;
+                    executeBarcodeScan(decodedText, { source: 'กล้องมือถือ (บาร์โค้ด)' });
                 };
                 try {
-                    await html5Scanner.start(
-                        { facingMode: 'environment' },
-                        config,
-                        (decodedText) => {
-                            const now = Date.now();
-                            if (decodedText === lastScannedCode && now - lastScannedAt < 1800) return;
-                            lastScannedCode = decodedText; lastScannedAt = now;
-                            status.textContent = `สแกนเจอ: ${decodedText}`;
-                            executeQrScan(decodedText, { source: 'กล้องสแกน QR' });
-                        },
-                        () => {}
-                    );
+                    await html5Scanner.start({ facingMode: 'environment' }, config, onSuccess, () => {});
                 } catch (backErr) {
                     const cams = await Html5Qrcode.getCameras();
                     if (!cams || !cams.length) throw backErr;
-                    await html5Scanner.start(
-                        cams[cams.length - 1].id,
-                        config,
-                        (decodedText) => {
-                            const now = Date.now();
-                            if (decodedText === lastScannedCode && now - lastScannedAt < 1800) return;
-                            lastScannedCode = decodedText; lastScannedAt = now;
-                            status.textContent = `สแกนเจอ: ${decodedText}`;
-                            executeQrScan(decodedText, { source: 'กล้องสแกน QR' });
-                        },
-                        () => {}
-                    );
+                    await html5Scanner.start(cams[cams.length - 1].id, config, onSuccess, () => {});
                 }
                 isCameraRunning = true;
                 document.getElementById('startCamBtn').classList.add('hidden');
                 document.getElementById('stopCamBtn').classList.remove('hidden');
-                status.textContent = 'กล้องพร้อมแล้ว — หันกล้องไปที่ QR Code หรือบาร์โค้ดให้ชัดในกรอบ';
+                status.textContent = 'กล้องพร้อมแล้ว — วางแถบบาร์โค้ดแนวนอนให้อยู่ในกรอบ (ห่างประมาณ 15-20 ซม.)';
             } catch (e) {
                 readerEl.classList.add('hidden');
-                status.textContent = 'เปิดกล้องไม่สำเร็จ: ต้องเปิดผ่านเว็บ https:// และกดอนุญาตสิทธิ์กล้องในเบราว์เซอร์';
+                status.textContent = 'เปิดกล้องไม่สำเร็จ: กรุณาเปิดผ่าน Safari/Chrome บนเว็บ https:// และกดอนุญาตสิทธิ์กล้อง';
             }
         }
 
@@ -1129,22 +878,21 @@
                 try { await html5Scanner.stop(); await html5Scanner.clear(); } catch (e) {}
             }
             isCameraRunning = false;
-            document.getElementById('qrReader').classList.add('hidden');
+            document.getElementById('barcodeReader').classList.add('hidden');
             document.getElementById('startCamBtn').classList.remove('hidden');
             document.getElementById('stopCamBtn').classList.add('hidden');
         }
 
-        async function scanQrFromImageFile(e) {
-            const file = e.target.files?.[0];
-            e.target.value = '';
+        async function scanBarcodeFromImage(e) {
+            const file = e.target.files?.[0]; e.target.value = '';
             if (!file || !window.Html5Qrcode) return;
             try {
-                let d = document.getElementById('qrFileTemp');
-                if (!d) { d = document.createElement('div'); d.id = 'qrFileTemp'; d.style.display = 'none'; document.body.appendChild(d); }
-                const decoded = await new Html5Qrcode('qrFileTemp').scanFile(file, true);
-                executeQrScan(decoded, { source: 'รูปภาพ QR' });
+                let d = document.getElementById('barcodeFileTemp');
+                if (!d) { d = document.createElement('div'); d.id = 'barcodeFileTemp'; d.style.display = 'none'; document.body.appendChild(d); }
+                const decoded = await new Html5Qrcode('barcodeFileTemp').scanFile(file, true);
+                executeBarcodeScan(decoded, { source: 'รูปภาพบาร์โค้ด' });
             } catch (err) {
-                showToast('ไม่พบ QR Code ในรูปภาพนี้', true);
+                showToast('ไม่พบบาร์โค้ดในรูปภาพนี้', true);
             }
         }
 
@@ -1152,10 +900,9 @@
         // Add / Edit Product Modal
         // ============================================================
         function openModal() {
-            editingProductId = null;
-            currentBase64Image = '';
+            editingProductId = null; currentBase64Image = '';
             document.getElementById('modalTitle').innerText = 'เพิ่มสินค้าใหม่ (' + getTeamDisplayName() + ')';
-            document.getElementById('newQrHint').classList.add('hidden');
+            document.getElementById('newBarcodeHint').classList.add('hidden');
             document.getElementById('productForm').reset();
             document.getElementById('formQuantity').value = 1;
             document.getElementById('formMinStock').value = 5;
@@ -1163,23 +910,19 @@
             document.getElementById('productModal').classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
         }
-
-        function openModalWithQr(qrCode, qty = 1) {
+        function openModalWithBarcode(code, qty = 1) {
             openModal();
-            document.getElementById('newQrHint').classList.remove('hidden');
-            document.getElementById('formQrCode').value = qrCode;
+            document.getElementById('newBarcodeHint').classList.remove('hidden');
+            document.getElementById('formBarcode').value = code;
             document.getElementById('formQuantity').value = qty;
             setTimeout(() => document.getElementById('formName').focus(), 60);
         }
-
         function editProduct(id) {
-            const p = products.find(item => Number(item.id) === Number(id));
-            if (!p) return;
-            editingProductId = p.id;
-            currentBase64Image = p.image || '';
+            const p = products.find(item => Number(item.id) === Number(id)); if (!p) return;
+            editingProductId = p.id; currentBase64Image = p.image || '';
             document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลสินค้า (' + getTeamDisplayName() + ')';
-            document.getElementById('newQrHint').classList.add('hidden');
-            document.getElementById('formQrCode').value = p.qrCode || '';
+            document.getElementById('newBarcodeHint').classList.add('hidden');
+            document.getElementById('formBarcode').value = p.qrCode || '';
             document.getElementById('formName').value = p.name || '';
             document.getElementById('formSize').value = p.size || p.sku || '';
             document.getElementById('formCategory').value = p.category || 'น้ำพริก';
@@ -1191,13 +934,14 @@
             document.getElementById('productModal').classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
         }
-
         function closeModal() { document.getElementById('productModal').classList.add('hidden'); }
 
         async function handleFormSubmit(e) {
             e.preventDefault();
+            const rawBc = document.getElementById('formBarcode').value.trim();
+            const autoBc = rawBc || `885${Math.floor(1000000000 + Math.random() * 8999999999)}`;
             const body = {
-                qrCode: document.getElementById('formQrCode').value.trim(),
+                qrCode: autoBc,
                 name: document.getElementById('formName').value.trim(),
                 size: document.getElementById('formSize').value.trim(),
                 category: document.getElementById('formCategory').value,
@@ -1259,111 +1003,56 @@
         });
 
         // ============================================================
-        // QR Sticker, Print Sheet, Deep Link & Exports
+        // Barcode Sticker Modal, Print Sheet & Exports
         // ============================================================
-        function buildQrPayload(qrCode, type) {
-            const base = `${window.location.origin}${window.location.pathname}`;
-            if (type === 'url') return `${base}?qr=${encodeURIComponent(qrCode)}`;
-            if (type === 'url_out') return `${base}?qr=${encodeURIComponent(qrCode)}&mode=out&auto=1`;
-            if (type === 'url_in') return `${base}?qr=${encodeURIComponent(qrCode)}&mode=in&auto=1`;
-            return qrCode;
-        }
-        function openQrStickerModal(id) {
-            const p = products.find(x => Number(x.id) === Number(id));
-            if (!p) return;
-            activeQrProduct = p;
-            document.getElementById('qrStickerModal').classList.remove('hidden');
-            renderActiveQrSticker();
+        function openStickerModal(id) {
+            const p = products.find(x => Number(x.id) === Number(id)); if (!p) return;
+            activeStickerProduct = p;
+            Barcode128.drawCanvas(document.getElementById('stickerCanvas'), p.qrCode, 74, 2);
+            document.getElementById('stickerName').textContent = p.name;
+            document.getElementById('stickerSub').textContent = `${p.size || p.sku || ''} • ${getTeamDisplayName(p.team)}`;
+            document.getElementById('stickerCodeText').textContent = p.qrCode;
+            document.getElementById('barcodeStickerModal').classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
         }
-        function renderActiveQrSticker() {
-            if (!activeQrProduct) return;
-            const type = document.getElementById('qrPayloadTypeSelect').value;
-            QRGen.drawToCanvas(document.getElementById('qrStickerCanvas'), buildQrPayload(activeQrProduct.qrCode, type), 210);
-            document.getElementById('qrStickerName').textContent = activeQrProduct.name;
-            document.getElementById('qrStickerSub').textContent = `${activeQrProduct.size || activeQrProduct.sku || ''} • ${getTeamDisplayName(activeQrProduct.team)}`;
-            document.getElementById('qrStickerCodeText').textContent = activeQrProduct.qrCode;
-        }
-        function closeQrStickerModal() { document.getElementById('qrStickerModal').classList.add('hidden'); }
-        function downloadActiveQrPng() {
-            if (!activeQrProduct) return;
-            const src = document.getElementById('qrStickerCanvas');
-            const out = document.createElement('canvas'); out.width = 300; out.height = 365;
+        function closeStickerModal() { document.getElementById('barcodeStickerModal').classList.add('hidden'); }
+        function downloadActiveBarcodePng() {
+            if (!activeStickerProduct) return;
+            const src = document.getElementById('stickerCanvas');
+            const out = document.createElement('canvas');
+            out.width = Math.max(320, src.width + 40); out.height = src.height + 100;
             const ctx = out.getContext('2d');
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 300, 365);
-            ctx.drawImage(src, 45, 20, 210, 210);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, out.width, out.height);
             ctx.fillStyle = '#0f172a'; ctx.textAlign = 'center';
-            ctx.font = 'bold 16px sans-serif'; ctx.fillText(activeQrProduct.name.slice(0, 24), 150, 265);
-            ctx.font = '13px sans-serif'; ctx.fillStyle = '#475569'; ctx.fillText(activeQrProduct.size || '', 150, 290);
-            ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#0f172a'; ctx.fillText(activeQrProduct.qrCode, 150, 326);
-            const a = document.createElement('a'); a.download = `QR_${activeQrProduct.qrCode}.png`; a.href = out.toDataURL('image/png'); a.click();
+            ctx.font = 'bold 16px sans-serif'; ctx.fillText(activeStickerProduct.name.slice(0, 28), out.width / 2, 28);
+            ctx.font = '12px sans-serif'; ctx.fillStyle = '#475569'; ctx.fillText(activeStickerProduct.size || '', out.width / 2, 48);
+            ctx.drawImage(src, (out.width - src.width) / 2, 54);
+            ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#0f172a'; ctx.fillText(activeStickerProduct.qrCode, out.width / 2, out.height - 14);
+            const a = document.createElement('a'); a.download = `BARCODE_${activeStickerProduct.qrCode}.png`; a.href = out.toDataURL('image/png'); a.click();
         }
         function simulateScanFromModal() {
-            if (!activeQrProduct) return;
-            const code = activeQrProduct.qrCode;
-            closeQrStickerModal();
-            openScanModal();
-            executeQrScan(code, { source: 'ทดลองสแกน QR' });
+            if (!activeStickerProduct) return;
+            const code = activeStickerProduct.qrCode;
+            closeStickerModal(); openScanModal();
+            executeBarcodeScan(code, { source: 'ทดลองยิงบาร์โค้ด' });
         }
 
-        function openPrintSheetModal() { document.getElementById('printSheetModal').classList.remove('hidden'); buildPrintSheet(); }
-        function closePrintSheetModal() { document.getElementById('printSheetModal').classList.add('hidden'); }
-        function buildPrintSheet() {
+        function openPrintSheetModal() {
             const area = document.getElementById('printSheetArea');
-            const type = document.getElementById('sheetPayloadType').value;
             area.innerHTML = products.map(p => `
-                <div class="bg-white border border-slate-300 rounded-xl p-3 text-center flex flex-col items-center gap-1">
-                    <div class="text-[10px] font-bold text-slate-400">${escapeHtml(getTeamDisplayName(p.team))}</div>
-                    <div>${QRGen.toSvg(buildQrPayload(p.qrCode, type), 115)}</div>
-                    <div class="text-xs font-bold text-slate-900">${escapeHtml(p.name)}</div>
-                    <div class="text-[11px] text-slate-500">${escapeHtml(p.size || p.sku || '-')}</div>
-                    <div class="text-[11px] font-mono font-bold bg-slate-100 px-2 py-0.5 rounded">${escapeHtml(p.qrCode)}</div>
+                <div class="bg-white border border-slate-300 rounded-xl p-3 text-center space-y-1.5">
+                    <div class="text-xs font-bold text-slate-900 truncate">${escapeHtml(p.name)}</div>
+                    <div class="text-[11px] text-slate-500">${escapeHtml(p.size || p.sku || '-')} • ${escapeHtml(getTeamDisplayName(p.team))}</div>
+                    <div class="px-1">${Barcode128.toSvg(p.qrCode, 44)}</div>
+                    <div class="text-xs font-mono font-bold tracking-widest text-slate-900">${escapeHtml(p.qrCode)}</div>
                 </div>`).join('');
+            document.getElementById('printSheetModal').classList.remove('hidden');
         }
-
-        async function handleInitialUrlScan() {
-            const params = new URLSearchParams(window.location.search);
-            const qr = params.get('qr') || params.get('code');
-            if (!qr) return;
-            const mode = params.get('mode');
-            const auto = params.get('auto') === '1';
-            const amount = parseInt(params.get('amount') || '1', 10) || 1;
-            if (mode === 'in' || mode === 'out') setScanMode(mode);
-            if (auto && (mode === 'in' || mode === 'out')) {
-                await executeQrScan(qr, { mode, amount, source: 'ลิงก์ QR มือถือ' });
-                return;
-            }
-            const res = await fetch(`${API_BASE}/lookup?qr=${encodeURIComponent(qr)}`);
-            const data = await res.json();
-            if (res.ok && data.found) {
-                deepLinkProduct = data.product;
-                document.getElementById('dlName').textContent = deepLinkProduct.name;
-                document.getElementById('dlMeta').textContent = `รหัส ${deepLinkProduct.qrCode} • ${deepLinkProduct.size || '-'}`;
-                document.getElementById('dlQty').textContent = deepLinkProduct.quantity;
-                document.getElementById('dlAmount').value = amount;
-                document.getElementById('deepLinkModal').classList.remove('hidden');
-            } else {
-                openModalWithQr(qr, amount);
-            }
-        }
-        function closeDeepLinkModal() { document.getElementById('deepLinkModal').classList.add('hidden'); }
-        async function executeDeepLinkAction(mode) {
-            if (!deepLinkProduct) return;
-            const amt = Math.max(1, parseInt(document.getElementById('dlAmount').value, 10) || 1);
-            closeDeepLinkModal();
-            await executeQrScan(deepLinkProduct.qrCode, { mode, amount: amt, source: 'ลิงก์ QR มือถือ' });
-        }
-
-        async function resetSandboxData() {
-            if (!confirm('รีเซ็ตข้อมูลทดลองกลับเป็นชุดตัวอย่าง? (ไม่กระทบเว็บหลัก)')) return;
-            await fetch(`${API_BASE}/reset`, { method: 'POST' });
-            showToast('รีเซ็ตข้อมูลทดลองเรียบร้อยแล้ว');
-            await Promise.all([fetchProducts(), fetchLogs()]);
-        }
+        function closePrintSheetModal() { document.getElementById('printSheetModal').classList.add('hidden'); }
 
         function exportToExcel() {
             if (!products.length) return alert('ไม่มีข้อมูลสำหรับส่งออก');
-            const rows = products.map(p => ({ 'รหัส QR': p.qrCode, 'SKU / ขนาด': p.size || p.sku || '-', 'ชื่อสินค้า': p.name, 'หมวดหมู่': p.category, 'จำนวนคงเหลือ': p.quantity, 'จุดเตือนสต็อกต่ำ': p.minStock }));
+            const rows = products.map(p => ({ 'บาร์โค้ด': p.qrCode, 'SKU / ขนาด': p.size || p.sku || '-', 'ชื่อสินค้า': p.name, 'หมวดหมู่': p.category, 'จำนวนคงเหลือ': p.quantity, 'จุดเตือนสต็อกต่ำ': p.minStock }));
             const ws = XLSX.utils.json_to_sheet(rows);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'StockData');
@@ -1374,10 +1063,10 @@
             if (!products.length) return alert('ยังไม่มีข้อมูลสินค้าสำหรับส่งออก');
             const div = document.createElement('div');
             div.style.padding = '20px'; div.style.background = '#fff'; div.style.color = '#1e293b';
-            div.innerHTML = `<h2 style="text-align:center;font-weight:bold;">รายงานสินค้า - ${getTeamDisplayName()} (ทดลอง)</h2>
+            div.innerHTML = `<h2 style="text-align:center;font-weight:bold;">รายงานสินค้า - ${getTeamDisplayName()}</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:12px;">
-                <thead><tr style="background:#f1f5f9;"><th style="border:1px solid #cbd5e1;padding:6px;">QR</th><th style="border:1px solid #cbd5e1;padding:6px;">ขนาด/SKU</th><th style="border:1px solid #cbd5e1;padding:6px;">ชื่อสินค้า</th><th style="border:1px solid #cbd5e1;padding:6px;">หมวดหมู่</th><th style="border:1px solid #cbd5e1;padding:6px;">คงเหลือ</th></tr></thead>
-                <tbody>${products.map(p => `<tr><td style="border:1px solid #e2e8f0;padding:6px;">${p.qrCode}</td><td style="border:1px solid #e2e8f0;padding:6px;">${p.size||'-'}</td><td style="border:1px solid #e2e8f0;padding:6px;">${p.name}</td><td style="border:1px solid #e2e8f0;padding:6px;">${p.category}</td><td style="border:1px solid #e2e8f0;padding:6px;text-align:center;">${p.quantity}</td></tr>`).join('')}</tbody></table>`;
+                <thead><tr style="background:#f1f5f9;"><th style="border:1px solid #cbd5e1;padding:6px;">บาร์โค้ด</th><th style="border:1px solid #cbd5e1;padding:6px;">ขนาด/SKU</th><th style="border:1px solid #cbd5e1;padding:6px;">ชื่อสินค้า</th><th style="border:1px solid #cbd5e1;padding:6px;">หมวดหมู่</th><th style="border:1px solid #cbd5e1;padding:6px;">คงเหลือ</th></tr></thead>
+                <tbody>${products.map(p => `<tr><td style="border:1px solid #e2e8f0;padding:6px;font-family:monospace;">${escapeHtml(p.qrCode)}</td><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(p.size||'-')}</td><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(p.name)}</td><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(p.category)}</td><td style="border:1px solid #e2e8f0;padding:6px;text-align:center;">${p.quantity}</td></tr>`).join('')}</tbody></table>`;
             html2pdf().set({ margin: 0.4, filename: `รายงานสินค้า_${getTeamDisplayName()}.pdf`, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } }).from(div).save();
         }
 
@@ -1385,10 +1074,10 @@
             if (!logs.length) return alert('ยังไม่มีประวัติสต็อกสำหรับส่งออก');
             const div = document.createElement('div');
             div.style.padding = '20px'; div.style.background = '#fff'; div.style.color = '#1e293b';
-            div.innerHTML = `<h2 style="text-align:center;font-weight:bold;">ประวัติความเคลื่อนไหว - ${getTeamDisplayName()} (ทดลอง)</h2>
+            div.innerHTML = `<h2 style="text-align:center;font-weight:bold;">ประวัติความเคลื่อนไหว - ${getTeamDisplayName()}</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:12px;">
                 <thead><tr style="background:#f1f5f9;"><th style="border:1px solid #cbd5e1;padding:6px;">วัน-เวลา</th><th style="border:1px solid #cbd5e1;padding:6px;">สินค้า</th><th style="border:1px solid #cbd5e1;padding:6px;">ประเภท</th><th style="border:1px solid #cbd5e1;padding:6px;">จำนวน</th><th style="border:1px solid #cbd5e1;padding:6px;">หมายเหตุ</th></tr></thead>
-                <tbody>${logs.map(l => `<tr><td style="border:1px solid #e2e8f0;padding:6px;">${l.date}</td><td style="border:1px solid #e2e8f0;padding:6px;">${l.productName}</td><td style="border:1px solid #e2e8f0;padding:6px;text-align:center;">${l.type}</td><td style="border:1px solid #e2e8f0;padding:6px;text-align:center;">${l.amount}</td><td style="border:1px solid #e2e8f0;padding:6px;">${l.note||'-'}</td></tr>`).join('')}</tbody></table>`;
+                <tbody>${logs.map(l => `<tr><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(l.date)}</td><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(l.productName)}</td><td style="border:1px solid #e2e8f0;padding:6px;text-align:center;">${escapeHtml(l.type)}</td><td style="border:1px solid #e2e8f0;padding:6px;text-align:center;">${l.amount}</td><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(l.note||'-')}</td></tr>`).join('')}</tbody></table>`;
             html2pdf().set({ margin: 0.4, filename: `ประวัติสต็อก_${getTeamDisplayName()}.pdf`, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } }).from(div).save();
         }
 
@@ -1396,7 +1085,6 @@
             updateTeamButtonsUI();
             if (window.lucide) lucide.createIcons();
             await Promise.all([fetchProducts(), fetchLogs()]);
-            await handleInitialUrlScan();
             setInterval(checkDataHeartbeat, 1500);
         };
     </script>

@@ -59,9 +59,9 @@ function parseQrPayload(rawInput) {
 }
 
 function generateAutoQrCode(team) {
-    const prefix = team === 'team2' ? 'SM-MT' : 'SM-NP';
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    return `${prefix}-${rand}`;
+    const prefix = team === 'team2' ? '8852' : '8851';
+    const rand = Math.floor(100000000 + Math.random() * 899999999);
+    return `${prefix}${rand}`;
 }
 
 function sortProductsThai(rows) {
@@ -181,11 +181,11 @@ labRouter.post('/scan', async (req, res) => {
         }
 
         const now = new Date().toLocaleString('th-TH');
-        const typeStr = mode === 'in' ? 'รับเข้า (QR)' : 'เบิกออก (QR)';
+        const typeStr = mode === 'in' ? 'รับเข้า (บาร์โค้ด)' : 'เบิกออก (บาร์โค้ด)';
         const team = product.team || 'team1';
         const logNote = note
             ? `${note} (${oldQty} → ${newQty})`
-            : `สแกน ${product.qrCode} (${oldQty} → ${newQty})`;
+            : `สแกนบาร์โค้ด ${product.qrCode} (${oldQty} → ${newQty})`;
 
         const batchRes = await labDb.batch([
             {
