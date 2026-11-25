@@ -858,13 +858,14 @@
                     verbose: false
                 });
                 // กรอบสแกนแนวนอนกว้าง ออกแบบมาสำหรับบาร์โค้ด 1D (EAN-13, Code-128) บนมือถือโดยเฉพาะ
-                const config = {
-                    fps: 15,
-                    qrbox: (w, h) => ({
-                        width: Math.max(200, Math.floor(w * 0.85)),
-                        height: Math.max(95, Math.floor(h * 0.42))
-                    }),
-                    aspectRatio: 1.5
+               const config = {
+    fps: 15,
+    videoConstraints: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+    }
+};
                 };
                 const onSuccess = (decodedText) => {
                     const now = Date.now();
