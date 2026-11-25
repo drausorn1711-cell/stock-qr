@@ -70,23 +70,23 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
-                <button onclick="exportProductsPDF()" class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm cursor-pointer">
-                    <i data-lucide="file-down" class="w-3.5 h-3.5 text-rose-600"></i> ส่งออก PDF นำเข้า
+                <button type="button" onclick="exportProductsPDF()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm cursor-pointer whitespace-nowrap">
+                    <i data-lucide="file-down" class="w-3.5 h-3.5 text-rose-600 pointer-events-none"></i> ส่งออก PDF นำเข้า
                 </button>
-                <button onclick="exportLogsPDF()" class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm cursor-pointer">
-                    <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-600"></i> PDF ประวัติสต็อก
+                <button type="button" onclick="exportLogsPDF()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm cursor-pointer whitespace-nowrap">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-600 pointer-events-none"></i> PDF ประวัติสต็อก
                 </button>
-                <button onclick="exportToExcel()" class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm cursor-pointer">
-                    <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-600"></i> ส่งออก Excel
+                <button type="button" onclick="exportToExcel()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm cursor-pointer whitespace-nowrap">
+                    <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-600 pointer-events-none"></i> ส่งออก Excel
                 </button>
 
                 <!-- ปุ่มสแกนบาร์โค้ด -->
-                <button onclick="openScanModal()" class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm cursor-pointer">
-                    <i data-lucide="scan-barcode" class="w-4 h-4"></i> สแกนบาร์โค้ด
+                <button id="openScanBtn" type="button" onclick="openScanModal()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm cursor-pointer whitespace-nowrap">
+                    <i data-lucide="scan-barcode" class="w-4 h-4 pointer-events-none"></i> สแกนบาร์โค้ด
                 </button>
 
-                <button onclick="openModal()" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm cursor-pointer">
-                    <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มสินค้าใหม่
+                <button id="openAddBtn" type="button" onclick="openModal()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm cursor-pointer whitespace-nowrap">
+                    <i data-lucide="plus" class="w-4 h-4 pointer-events-none"></i> เพิ่มสินค้าใหม่
                 </button>
             </div>
         </div>
@@ -527,11 +527,16 @@
         function showToast(message, isError = false) {
             let toast = document.getElementById('toastNotification');
             if (!toast) { toast = document.createElement('div'); toast.id = 'toastNotification'; document.body.appendChild(toast); }
-            toast.className = `fixed top-5 right-5 z-[60] px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-white text-sm font-semibold transition-all duration-300 ${isError ? 'bg-rose-600' : 'bg-emerald-600'}`;
+            toast.className = `fixed bottom-5 right-5 z-[60] pointer-events-none px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-white text-sm font-semibold transition-opacity duration-300 ${isError ? 'bg-rose-600' : 'bg-emerald-600'}`;
             toast.textContent = isError ? `⚠️ ${message}` : `✓ ${message}`;
+            toast.style.display = 'flex';
             toast.style.opacity = '1';
             clearTimeout(window._tTimer);
-            window._tTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+            clearTimeout(window._tHideTimer);
+            window._tTimer = setTimeout(() => {
+                toast.style.opacity = '0';
+                window._tHideTimer = setTimeout(() => { toast.style.display = 'none'; }, 320);
+            }, 2500);
         }
 
         function updateTeamButtonsUI() {
@@ -711,12 +716,24 @@
         // Scan Barcode Modal & Camera (Wide 1D Barcode Reticle!)
         // ============================================================
         function openScanModal() {
-            document.getElementById('scanModal').classList.remove('hidden');
-            setScanMode(scanMode);
-            if (window.lucide) lucide.createIcons();
-            setTimeout(() => document.getElementById('barcodeManualInput').focus(), 80);
+            const modal = document.getElementById('scanModal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            try { setScanMode(scanMode); } catch (e) {}
+            try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+            setTimeout(() => {
+                try { document.getElementById('barcodeManualInput')?.focus(); } catch (e) {}
+            }, 80);
         }
-        function closeScanModal() { stopCameraScanner(); document.getElementById('scanModal').classList.add('hidden'); }
+        function closeScanModal() {
+            stopCameraScanner();
+            const modal = document.getElementById('scanModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = '';
+            }
+        }
 
         function setScanMode(mode) {
             scanMode = mode === 'out' ? 'out' : 'in';
