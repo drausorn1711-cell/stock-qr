@@ -6,14 +6,14 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>StockMaster - ระบบคลังสินค้า + สแกนบาร์โค้ด</title>
+    <title>StockMaster - ระบบคลังสินค้า + สแกน QR Code</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Mobile Barcode + QR Camera Scanner (รองรับ iPhone & Android) -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
-    <!-- Export Excel & PDF -->
+    <!-- jsQR: ตัวอ่าน QR Code ความเร็วสูง รองรับมือถือแนวตั้งทั้ง iPhone (Safari) และ Android (Chrome) -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" defer></script>
+    <!-- ส่งออก Excel & PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
     <style>
@@ -21,7 +21,6 @@
         @keyframes rowFlashOut { 0% { background-color: #ffe4e6; } 100% { background-color: transparent; } }
         .flash-in { animation: rowFlashIn 1.4s ease-out; }
         .flash-out { animation: rowFlashOut 1.4s ease-out; }
-        #barcodeReader video { border-radius: 0.75rem; width: 100% !important; object-fit: cover; }
         @media print {
             body * { visibility: hidden !important; }
             #printSheetArea, #printSheetArea * { visibility: visible !important; }
@@ -39,7 +38,7 @@
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans antialiased">
 
-    <!-- Navbar / Header (หน้าตา StockMaster เดิมเป๊ะๆ คลีนไม่มีแถบเหลือง + ปุ่มสแกนบาร์โค้ด) -->
+    <!-- Header (หน้าตา StockMaster เดิม + ปุ่มสแกน QR) -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-20 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -58,13 +57,13 @@
                     </p>
                 </div>
 
-                <!-- ปุ่มสลับทีม -->
-                <div class="ml-1 sm:ml-3 inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
+                <!-- สลับทีม -->
+                <div class="ml-1 sm:ml-2 inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
                     <button id="tabTeam1" onclick="switchTeam('team1')" type="button" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-600 text-white shadow-sm cursor-pointer">
-                        <i data-lucide="users" class="w-3.5 h-3.5"></i> ทีมน้ำพริก
+                        <i data-lucide="users" class="w-3.5 h-3.5 pointer-events-none"></i> ทีมน้ำพริก
                     </button>
                     <button id="tabTeam2" onclick="switchTeam('team2')" type="button" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer">
-                        <i data-lucide="users" class="w-3.5 h-3.5"></i> ทีมมหาเทพ
+                        <i data-lucide="users" class="w-3.5 h-3.5 pointer-events-none"></i> ทีมมหาเทพ
                     </button>
                 </div>
             </div>
@@ -80,9 +79,9 @@
                     <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-600 pointer-events-none"></i> ส่งออก Excel
                 </button>
 
-                <!-- ปุ่มสแกนบาร์โค้ด -->
+                <!-- ปุ่มสแกน QR -->
                 <button id="openScanBtn" type="button" onclick="openScanModal()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm cursor-pointer whitespace-nowrap">
-                    <i data-lucide="scan-barcode" class="w-4 h-4 pointer-events-none"></i> สแกนบาร์โค้ด
+                    <i data-lucide="qr-code" class="w-4 h-4 pointer-events-none"></i> สแกน QR
                 </button>
 
                 <button id="openAddBtn" type="button" onclick="openModal()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition shadow-sm cursor-pointer whitespace-nowrap">
@@ -127,19 +126,19 @@
             </div>
         </div>
 
-        <!-- แท็บคลังสินค้า และ ประวัติความเคลื่อนไหว -->
+        <!-- แท็บคลังสินค้า & ประวัติ -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="flex items-center justify-between px-6 border-b border-slate-200">
                 <div class="flex items-center gap-6">
-                    <button id="tabProductsBtn" onclick="switchTab('products')" class="py-4 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 cursor-pointer">
+                    <button id="tabProductsBtn" type="button" onclick="switchTab('products')" class="py-4 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 cursor-pointer">
                         <i data-lucide="list" class="w-4 h-4"></i> คลังสินค้า
                     </button>
-                    <button id="tabLogsBtn" onclick="switchTab('logs')" class="py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center gap-2 cursor-pointer">
+                    <button id="tabLogsBtn" type="button" onclick="switchTab('logs')" class="py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition flex items-center gap-2 cursor-pointer">
                         <i data-lucide="history" class="w-4 h-4"></i> ประวัติความเคลื่อนไหว
                     </button>
                 </div>
                 <button type="button" onclick="openPrintSheetModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 transition cursor-pointer">
-                    <i data-lucide="printer" class="w-3.5 h-3.5"></i> พิมพ์ป้ายบาร์โค้ด
+                    <i data-lucide="printer" class="w-3.5 h-3.5"></i> พิมพ์ป้าย QR
                 </button>
             </div>
 
@@ -148,7 +147,7 @@
                 <div class="flex flex-col md:flex-row gap-3 items-center justify-between">
                     <div class="relative w-full md:w-96">
                         <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
-                        <input type="text" id="searchInput" oninput="onSearchInput()" placeholder="ค้นหาตามชื่อสินค้า, เลขบาร์โค้ด หรือ SKU/ขนาด..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" id="searchInput" oninput="onSearchInput()" placeholder="ค้นหาตามชื่อสินค้า, รหัส QR หรือ SKU/ขนาด..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="flex gap-2 w-full md:w-auto">
                         <select id="categoryFilter" onchange="renderTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
@@ -173,7 +172,7 @@
                         <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
                             <tr>
                                 <th class="px-4 py-3 text-center">รูปภาพ</th>
-                                <th class="px-4 py-3">ขนาด/SKU & บาร์โค้ด</th>
+                                <th class="px-4 py-3">ขนาด/SKU & รหัส QR</th>
                                 <th class="px-4 py-3">ชื่อสินค้า</th>
                                 <th class="px-4 py-3">หมวดหมู่</th>
                                 <th class="px-4 py-3 text-center">คงเหลือ</th>
@@ -211,19 +210,17 @@
         </div>
     </main>
 
-    <!-- ========================================================= -->
-    <!-- Modal: สแกนบาร์โค้ดรับเข้า / เบิกออกทันที (รองรับกล้องมือถือ 1D/QR) -->
-    <!-- ========================================================= -->
+    <!-- Modal: สแกน QR รับเข้า / เบิกออกทันที (กล้องแนวตั้ง jsQR จับไว 360°) -->
     <div id="scanModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden no-print">
         <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[94vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div class="flex items-center gap-2.5">
                     <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                        <i data-lucide="scan-barcode" class="w-5 h-5"></i>
+                        <i data-lucide="qr-code" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-slate-900">สแกนบาร์โค้ดรับเข้า / เบิกออกทันที</h3>
-                        <p class="text-[11px] text-slate-500">ใช้กล้องมือถือ, เครื่องยิงบาร์โค้ด USB/Bluetooth หรือพิมพ์เลขบาร์โค้ด</p>
+                        <h3 class="text-base font-bold text-slate-900">สแกน QR รับเข้า / เบิกออกทันที</h3>
+                        <p class="text-[11px] text-slate-500">ถือมือถือแนวตั้งส่อง QR ได้ทุกมุม 360° หรือยิงด้วยเครื่องสแกน</p>
                     </div>
                 </div>
                 <button type="button" onclick="closeScanModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
@@ -231,25 +228,25 @@
                 </button>
             </div>
 
-            <!-- สลับโหมด รับเข้า (+) / เบิกออก (−) -->
+            <!-- โหมด รับเข้า (+) / เบิกออก (−) -->
             <div class="grid grid-cols-2 gap-2.5">
                 <button id="modeInBtn" type="button" onclick="setScanMode('in')" class="p-3 rounded-xl border-2 text-left transition flex items-center justify-between cursor-pointer border-emerald-600 bg-emerald-50 text-emerald-900">
                     <div>
-                        <div class="text-sm font-bold">ยิงรับเข้า (+)</div>
+                        <div class="text-sm font-bold">สแกนรับเข้า (+)</div>
                         <div class="text-[11px] opacity-80">เพิ่มสต็อกทันที</div>
                     </div>
                     <span class="w-7 h-7 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center">+</span>
                 </button>
                 <button id="modeOutBtn" type="button" onclick="setScanMode('out')" class="p-3 rounded-xl border-2 text-left transition flex items-center justify-between cursor-pointer border-slate-200 bg-white text-slate-600">
                     <div>
-                        <div class="text-sm font-bold">ยิงเบิกออก (−)</div>
+                        <div class="text-sm font-bold">สแกนเบิกออก (−)</div>
                         <div class="text-[11px] opacity-80">ตัดสต็อกทันที</div>
                     </div>
                     <span class="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 font-bold flex items-center justify-center">−</span>
                 </button>
             </div>
 
-            <!-- จำนวนต่อการยิง + เสียง -->
+            <!-- จำนวนต่อครั้ง + เสียง -->
             <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                 <div class="flex items-center gap-1.5">
                     <span class="text-xs font-semibold text-slate-600">จำนวน/ครั้ง:</span>
@@ -263,16 +260,16 @@
                 </label>
             </div>
 
-            <!-- กล้องส่องบาร์โค้ดมือถือ (กรอบแนวนอนสำหรับ 1D Barcode + QR) -->
+            <!-- กล้องสแกน QR แบบสด (jsQR Direct HD) -->
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2.5">
                 <div class="flex items-center justify-between gap-2">
                     <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <i data-lucide="camera" class="w-4 h-4 text-blue-600"></i> กล้องสแกนบาร์โค้ด
+                        <i data-lucide="camera" class="w-4 h-4 text-blue-600"></i> กล้องสแกน QR Code
                     </span>
                     <div class="flex items-center gap-1.5">
                         <label class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
                             <i data-lucide="image-up" class="w-3.5 h-3.5 text-blue-600"></i> จากรูปภาพ
-                            <input type="file" accept="image/*" onchange="scanBarcodeFromImage(event)" class="hidden">
+                            <input type="file" accept="image/*" onchange="scanQrFromImage(event)" class="hidden">
                         </label>
                         <button id="startCamBtn" type="button" onclick="startCameraScanner()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
                             <i data-lucide="video" class="w-3.5 h-3.5"></i> เปิดกล้อง
@@ -282,13 +279,20 @@
                         </button>
                     </div>
                 </div>
-                <div id="barcodeReader" class="hidden w-full overflow-hidden rounded-xl bg-black"></div>
-                <div id="cameraStatus" class="text-[11px] text-slate-500 text-center">กด "เปิดกล้อง" แล้ววางแถบบาร์โค้ดในแนวนอนให้ชัดอยู่ในกรอบ (ห่าง ~15-20 ซม.)</div>
+
+                <div id="camWrap" class="hidden relative w-full overflow-hidden rounded-xl bg-black">
+                    <video id="camVideo" playsinline autoplay muted class="w-full max-h-72 object-cover block"></video>
+                    <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div class="w-48 h-48 border-2 border-emerald-400/90 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]"></div>
+                    </div>
+                </div>
+                <canvas id="camCanvas" class="hidden"></canvas>
+                <div id="cameraStatus" class="text-[11px] text-slate-500 text-center">กด "เปิดกล้อง" แล้วหันไปที่ QR Code ได้เลย (รองรับถือมือถือแนวตั้ง 360°)</div>
             </div>
 
-            <!-- ช่องเครื่องยิงบาร์โค้ด USB / Bluetooth -->
+            <!-- ช่องเครื่องยิง QR / พิมพ์รหัส -->
             <form onsubmit="handleManualScanSubmit(event)" class="flex gap-2">
-                <input id="barcodeManualInput" type="text" autocomplete="off" placeholder="ยิงเครื่องสแกนบาร์โค้ด หรือพิมพ์รหัสแล้วกด Enter..." class="flex-1 px-3 py-2 border-2 border-blue-200 focus:border-blue-500 rounded-lg text-sm font-mono focus:outline-none">
+                <input id="qrManualInput" type="text" autocomplete="off" placeholder="ยิงเครื่องสแกน หรือพิมพ์รหัสแล้วกด Enter..." class="flex-1 px-3 py-2 border-2 border-blue-200 focus:border-blue-500 rounded-lg text-sm font-mono focus:outline-none">
                 <button id="scanSubmitBtn" type="submit" class="px-4 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer shrink-0">
                     รับเข้าทันที
                 </button>
@@ -310,19 +314,19 @@
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b pb-3">
                 <h3 id="modalTitle" class="text-base font-bold text-slate-900">เพิ่มสินค้าใหม่</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <div id="newBarcodeHint" class="hidden rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
-                สแกนพบบาร์โค้ดใหม่ที่ยังไม่มีในระบบ กรอกชื่อสินค้าและจำนวนด้านล่างเพื่อเพิ่มเข้าสต็อกทันที
+            <div id="newQrHint" class="hidden rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
+                สแกนพบรหัส QR ใหม่ที่ยังไม่มีในระบบ กรอกชื่อสินค้าและจำนวนด้านล่างเพื่อเพิ่มเข้าสต็อกทันที
             </div>
 
             <form id="productForm" onsubmit="handleFormSubmit(event)" class="space-y-3">
                 <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">เลขบาร์โค้ด (ยิงใส่ช่องนี้ หรือเว้นว่างให้ระบบสร้างอัตโนมัติ)</label>
-                    <input type="text" id="formBarcode" placeholder="เช่น 8851001001099 หรือยิงจากกล่องสินค้า" class="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-xs font-medium text-slate-700 mb-1">รหัส QR Code (เว้นว่างให้ระบบสร้างให้อัตโนมัติ)</label>
+                    <input type="text" id="formQrCode" placeholder="เช่น 8851001001099 หรือ SM-NP-009" class="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div>
@@ -378,119 +382,245 @@
         </div>
     </div>
 
-    <!-- Modal ดูและดาวน์โหลดป้ายบาร์โค้ดรายสินค้า (Code 128) -->
-    <div id="barcodeStickerModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
+    <!-- Modal ดู / ดาวน์โหลดป้าย QR Code รายสินค้า -->
+    <div id="qrStickerModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
             <div class="flex items-center justify-between border-b pb-3">
-                <h3 class="text-base font-bold text-slate-900">ป้ายบาร์โค้ดสินค้า (Code 128)</h3>
-                <button type="button" onclick="closeStickerModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <h3 class="text-base font-bold text-slate-900">ป้าย QR Code สินค้า</h3>
+                <button type="button" onclick="closeQrStickerModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div class="border-2 border-dashed border-slate-300 rounded-2xl p-4 bg-white text-center space-y-2">
-                <div id="stickerName" class="text-sm font-bold text-slate-900"></div>
-                <div id="stickerSub" class="text-xs text-slate-500"></div>
-                <canvas id="stickerCanvas" class="mx-auto max-w-full"></canvas>
-                <div id="stickerCodeText" class="text-sm font-mono font-bold tracking-widest text-slate-900"></div>
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">รูปแบบข้อมูลใน QR</label>
+                <select id="qrPayloadTypeSelect" onchange="renderActiveQrSticker()" class="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-lg bg-slate-50">
+                    <option value="url" selected>ลิงก์เว็บ (แนะนำ — สแกนได้ทั้งกล้องมือถือธรรมดา, LINE และปุ่มสแกน QR)</option>
+                    <option value="url_out">ลิงก์เบิกออกทันที (-1 อัตโนมัติเมื่อเปิด)</option>
+                    <option value="url_in">ลิงก์รับเข้าทันที (+1 อัตโนมัติเมื่อเปิด)</option>
+                    <option value="code">รหัสสั้นอย่างเดียว (สำหรับกล้องในเว็บ / เครื่องยิง)</option>
+                </select>
+            </div>
+            <div class="border border-slate-200 rounded-2xl p-4 bg-white text-center space-y-2">
+                <canvas id="qrStickerCanvas" width="220" height="220" class="mx-auto"></canvas>
+                <div id="qrStickerName" class="text-sm font-bold text-slate-900"></div>
+                <div id="qrStickerSub" class="text-xs text-slate-500"></div>
+                <div id="qrStickerCodeText" class="text-xs font-mono font-bold text-slate-700 bg-slate-100 inline-block px-2.5 py-0.5 rounded"></div>
             </div>
             <div class="grid grid-cols-2 gap-2">
-                <button type="button" onclick="downloadActiveBarcodePng()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold cursor-pointer">ดาวน์โหลด PNG</button>
-                <button type="button" onclick="simulateScanFromModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer">ทดลองยิงบาร์โค้ดนี้</button>
+                <button type="button" onclick="downloadActiveQrPng()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold cursor-pointer">ดาวน์โหลด PNG</button>
+                <button type="button" onclick="simulateScanFromModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer">ทดลองสแกนรหัสนี้</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal แผ่นพิมพ์ป้ายบาร์โค้ดทั้งหมด -->
+    <!-- Modal เมื่อเปิดผ่านลิงก์ QR จากกล้องมือถือธรรมดา / LINE (?qr=...) -->
+    <div id="deepLinkModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <span class="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold">เปิดจากการสแกน QR</span>
+                <button type="button" onclick="closeDeepLinkModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div>
+                <h3 id="dlName" class="text-lg font-bold text-slate-900"></h3>
+                <p id="dlMeta" class="text-xs text-slate-500"></p>
+            </div>
+            <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500">คงเหลือปัจจุบัน</span>
+                <span id="dlQty" class="text-2xl font-bold text-slate-900">0</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-semibold text-slate-600">จำนวน:</label>
+                <input id="dlAmount" type="number" min="1" value="1" class="w-20 px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-center">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <button type="button" onclick="executeDeepLinkAction('in')" class="py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold cursor-pointer">+ รับเข้าทันที</button>
+                <button type="button" onclick="executeDeepLinkAction('out')" class="py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold cursor-pointer">− เบิกออกทันที</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal แผ่นพิมพ์ป้าย QR ทั้งหมด -->
     <div id="printSheetModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-            <div class="p-4 border-b border-slate-200 flex items-center justify-between gap-2 no-print">
-                <h3 class="text-base font-bold text-slate-900">แผ่นพิมพ์ป้ายบาร์โค้ด (สติกเกอร์ A4 / เครื่องพิมพ์ความร้อน)</h3>
+            <div class="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 no-print">
+                <h3 class="text-base font-bold text-slate-900">แผ่นพิมพ์ป้าย QR Code</h3>
                 <div class="flex items-center gap-2">
+                    <select id="sheetPayloadType" onchange="buildPrintSheet()" class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white">
+                        <option value="url" selected>ลิงก์เว็บ (สแกนด้วยกล้องมือถือ / LINE / ในเว็บได้หมด)</option>
+                        <option value="code">รหัสสั้นอย่างเดียว</option>
+                    </select>
                     <button type="button" onclick="window.print()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold cursor-pointer">สั่งพิมพ์</button>
                     <button type="button" onclick="closePrintSheetModal()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer">ปิด</button>
                 </div>
             </div>
-            <div id="printSheetArea" class="p-5 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 bg-slate-50"></div>
+            <div id="printSheetArea" class="p-5 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 bg-slate-50"></div>
         </div>
     </div>
 
     <script>
         // ============================================================
-        // ISO/IEC 15417 Code-128B Barcode Generator (Pure JS, Real Scannable!)
+        // 1. Pure-JS ISO/IEC 18004 QR Code Generator (สแกนได้จริง 100%)
         // ============================================================
-        const Barcode128 = (() => {
-            const PAT = [
-                '212222','222122','222221','121223','121322','131222','122213','122312','132212','221213',
-                '221312','231212','112232','122132','122231','113222','123122','123221','223211','221132',
-                '221231','213212','223112','312131','311222','321122','321221','312212','322112','322211',
-                '212123','212321','232121','111323','131123','131321','112313','132113','132311','211313',
-                '231113','231311','112133','112331','132131','113123','113321','133121','313121','211331',
-                '231131','213113','213311','213131','311123','311321','331121','312113','312311','332111',
-                '314111','221411','431111','111224','111422','121124','121421','141122','141221','112214',
-                '112412','122114','122411','142112','142211','241211','221114','413111','241112','134111',
-                '111242','121142','121241','114212','124112','124211','411212','421112','421211','212141',
-                '214121','412121','111143','111341','131141','114113','114311','411113','411311','113141',
-                '114131','311141','411131','211412','211214','211232','2331112'
+        const QRGen = (() => {
+            const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+            let x = 1;
+            for (let i = 0; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11d; }
+            for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+            const gfMul = (a, b) => (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]];
+            function rsGen(d) {
+                let p = [1];
+                for (let i = 0; i < d; i++) {
+                    const n = new Array(p.length + 1).fill(0);
+                    for (let j = 0; j < p.length; j++) { n[j] ^= p[j]; n[j + 1] ^= gfMul(p[j], EXP[i]); }
+                    p = n;
+                }
+                return p;
+            }
+            function rsRem(data, ec) {
+                const g = rsGen(ec), r = new Uint8Array(ec);
+                for (let i = 0; i < data.length; i++) {
+                    const f = data[i] ^ r[0]; r.copyWithin(0, 1); r[ec - 1] = 0;
+                    for (let j = 0; j < ec; j++) r[j] ^= gfMul(g[j + 1], f);
+                }
+                return r;
+            }
+            const VER_M = [
+                null, [26,10,1,16,0,0], [44,16,1,28,0,0], [70,26,1,44,0,0], [100,18,2,32,0,0],
+                [134,24,2,43,0,0], [172,16,4,27,0,0], [196,18,4,31,0,0], [242,22,2,38,2,39],
+                [292,22,3,36,2,37], [346,26,4,43,1,44]
             ];
-            function encodeWidths(raw) {
-                const text = String(raw || '').replace(/[^\x20-\x7E]/g, '') || '000000';
-                const codes = [104];
-                let sum = 104;
-                for (let i = 0; i < text.length; i++) {
-                    const v = text.charCodeAt(i) - 32;
-                    codes.push(v); sum += v * (i + 1);
+            const ALIGN = [[],[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
+            const VER_BITS = { 7: 0x07C94, 8: 0x085BC, 9: 0x09A99, 10: 0x0A4D3 };
+
+            function encode(text) {
+                const bytes = new TextEncoder().encode(String(text));
+                let ver = 1;
+                while (ver <= 10) {
+                    const cfg = VER_M[ver];
+                    const tot = cfg[2] * cfg[3] + cfg[4] * cfg[5];
+                    if (bytes.length <= Math.floor((tot * 8 - 4 - (ver <= 9 ? 8 : 16)) / 8)) break;
+                    ver++;
                 }
-                codes.push(sum % 103); codes.push(106);
-                return codes.map(c => PAT[c]).join('');
-            }
-            function toSvg(text, height = 44) {
-                const widths = encodeWidths(text);
-                const quiet = 10;
-                let x = quiet, rects = '';
-                for (let i = 0; i < widths.length; i++) {
-                    const w = Number(widths[i]);
-                    if (i % 2 === 0) rects += `<rect x="${x}" y="0" width="${w}" height="${height}"/>`;
-                    x += w;
+                if (ver > 10) ver = 10;
+                const [, ecLen, b1, d1, b2, d2] = VER_M[ver];
+                const totalData = b1 * d1 + b2 * d2, bits = [];
+                const push = (v, l) => { for (let i = l - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+                push(0b0100, 4); push(bytes.length, ver <= 9 ? 8 : 16);
+                for (const b of bytes) push(b, 8);
+                for (let i = 0; i < 4 && bits.length < totalData * 8; i++) bits.push(0);
+                while (bits.length % 8) bits.push(0);
+                const dataCw = [];
+                for (let i = 0; i < bits.length; i += 8) {
+                    let v = 0; for (let j = 0; j < 8; j++) v = (v << 1) | bits[i + j];
+                    dataCw.push(v);
                 }
-                const totalW = x + quiet;
-                return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${height}" class="w-full h-11" preserveAspectRatio="none" shape-rendering="crispEdges"><rect width="${totalW}" height="${height}" fill="#ffffff"/><g fill="#0f172a">${rects}</g></svg>`;
+                let pi = 0; while (dataCw.length < totalData) dataCw.push((pi++ & 1) ? 0x11 : 0xEC);
+                const dBlks = [], eBlks = []; let off = 0;
+                for (let i = 0; i < b1; i++) { const bl = dataCw.slice(off, off + d1); off += d1; dBlks.push(bl); eBlks.push(rsRem(bl, ecLen)); }
+                for (let i = 0; i < b2; i++) { const bl = dataCw.slice(off, off + d2); off += d2; dBlks.push(bl); eBlks.push(rsRem(bl, ecLen)); }
+                const cw = [];
+                for (let i = 0; i < Math.max(d1, d2); i++) for (const bl of dBlks) if (i < bl.length) cw.push(bl[i]);
+                for (let i = 0; i < ecLen; i++) for (const ec of eBlks) cw.push(ec[i]);
+
+                const size = ver * 4 + 17;
+                const mat = Array.from({ length: size }, () => new Uint8Array(size));
+                const fn = Array.from({ length: size }, () => new Uint8Array(size));
+                const setF = (r, c, v) => { if (r >= 0 && r < size && c >= 0 && c < size) { mat[r][c] = v ? 1 : 0; fn[r][c] = 1; } };
+                const finder = (cr, cc) => {
+                    for (let dr = -4; dr <= 4; dr++) for (let dc = -4; dc <= 4; dc++) {
+                        const r = cr + dr, c = cc + dc;
+                        if (r < 0 || r >= size || c < 0 || c >= size) continue;
+                        const d = Math.max(Math.abs(dr), Math.abs(dc));
+                        setF(r, c, d !== 2 && d !== 4);
+                    }
+                };
+                finder(3, 3); finder(3, size - 4); finder(size - 4, 3);
+                for (const r of ALIGN[ver]) for (const c of ALIGN[ver]) {
+                    if (fn[r][c]) continue;
+                    for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) setF(r + dr, c + dc, Math.max(Math.abs(dr), Math.abs(dc)) !== 1);
+                }
+                for (let i = 8; i < size - 8; i++) { if (!fn[6][i]) setF(6, i, i % 2 === 0); if (!fn[i][6]) setF(i, 6, i % 2 === 0); }
+                setF(size - 8, 8, 1);
+                for (let i = 0; i < 9; i++) if (i !== 6) { fn[8][i] = 1; fn[i][8] = 1; }
+                for (let i = 0; i < 8; i++) { fn[8][size - 1 - i] = 1; fn[size - 1 - i][8] = 1; }
+                if (ver >= 7) {
+                    const vb = VER_BITS[ver];
+                    for (let i = 0; i < 18; i++) {
+                        const b = (vb >>> i) & 1, a = Math.floor(i / 3), col = size - 11 + (i % 3);
+                        setF(a, col, b); setF(col, a, b);
+                    }
+                }
+                let bi = 0; const totalBits = cw.length * 8;
+                for (let right = size - 1; right >= 1; right -= 2) {
+                    if (right === 6) right = 5;
+                    const up = ((right + 1) & 2) === 0;
+                    for (let vert = 0; vert < size; vert++) {
+                        const r = up ? size - 1 - vert : vert;
+                        for (let j = 0; j < 2; j++) {
+                            const c = right - j;
+                            if (!fn[r][c]) {
+                                let b = 0; if (bi < totalBits) { b = (cw[bi >>> 3] >>> (7 - (bi & 7))) & 1; bi++; }
+                                mat[r][c] = b;
+                            }
+                        }
+                    }
+                }
+                const masks = [
+                    (r,c)=>(r+c)%2===0, (r,c)=>r%2===0, (r,c)=>c%3===0, (r,c)=>(r+c)%3===0,
+                    (r,c)=>(Math.floor(r/2)+Math.floor(c/3))%2===0, (r,c)=>((r*c)%2+(r*c)%3)===0,
+                    (r,c)=>(((r*c)%2+(r*c)%3)%2)===0, (r,c)=>(((r+c)%2+(r*c)%3)%2)===0
+                ];
+                const fmt = (m) => { let rem = m; for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537); return ((m << 10) | rem) ^ 0x5412; };
+                const apply = (m) => {
+                    const out = mat.map(r => new Uint8Array(r));
+                    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (!fn[r][c] && masks[m](r, c)) out[r][c] ^= 1;
+                    const fb = fmt(m);
+                    for (let i = 0; i <= 5; i++) out[8][i] = (fb >>> (14 - i)) & 1;
+                    out[8][7] = (fb >>> 8) & 1; out[8][8] = (fb >>> 7) & 1; out[7][8] = (fb >>> 6) & 1;
+                    for (let i = 9; i < 15; i++) out[14 - i][8] = (fb >>> (14 - i)) & 1;
+                    for (let i = 0; i < 8; i++) out[8][size - 1 - i] = (fb >>> i) & 1;
+                    for (let i = 0; i < 7; i++) out[size - 1 - i][8] = (fb >>> (14 - i)) & 1;
+                    out[size - 8][8] = 1;
+                    return out;
+                };
+                const pen = (m) => {
+                    let s = 0;
+                    for (let r = 0; r < size; r++) { let k = 1; for (let c = 1; c < size; c++) { if (m[r][c] === m[r][c-1]) { k++; if (k===5) s+=3; else if (k>5) s++; } else k=1; } }
+                    for (let c = 0; c < size; c++) { let k = 1; for (let r = 1; r < size; r++) { if (m[r][c] === m[r-1][c]) { k++; if (k===5) s+=3; else if (k>5) s++; } else k=1; } }
+                    return s;
+                };
+                let best = null, bs = Infinity;
+                for (let m = 0; m < 8; m++) { const cand = apply(m); const sc = pen(cand); if (sc < bs) { bs = sc; best = cand; } }
+                return { size, modules: best };
             }
-            function drawCanvas(canvas, text, barH = 74, modW = 2) {
-                const widths = encodeWidths(text);
-                const quiet = 12 * modW;
-                let totalMods = 0;
-                for (let i = 0; i < widths.length; i++) totalMods += Number(widths[i]);
-                canvas.width = totalMods * modW + quiet * 2;
-                canvas.height = barH + 16;
+            function drawToCanvas(canvas, text, px = 220) {
+                const { size, modules } = encode(text);
+                const q = 4, tot = size + q * 2, sc = Math.max(2, Math.floor(px / tot)), dim = tot * sc;
+                canvas.width = dim; canvas.height = dim;
                 const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, dim, dim);
                 ctx.fillStyle = '#0f172a';
-                let x = quiet;
-                for (let i = 0; i < widths.length; i++) {
-                    const w = Number(widths[i]) * modW;
-                    if (i % 2 === 0) ctx.fillRect(x, 8, w, barH);
-                    x += w;
-                }
+                for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (modules[r][c]) ctx.fillRect((c+q)*sc, (r+q)*sc, sc, sc);
             }
-            return { toSvg, drawCanvas };
+            function toSvg(text, px = 120) {
+                const { size, modules } = encode(text);
+                const q = 3, tot = size + q * 2;
+                let rects = '';
+                for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (modules[r][c]) rects += `<rect x="${c+q}" y="${r+q}" width="1" height="1"/>`;
+                return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${tot} ${tot}" shape-rendering="crispEdges"><rect width="${tot}" height="${tot}" fill="#ffffff"/><g fill="#0f172a">${rects}</g></svg>`;
+            }
+            return { drawToCanvas, toSvg };
         })();
 
         // ============================================================
-        // App Logic (เชื่อมต่อเฉพาะ /api/lab — แยกจากเว็บเดิม 100%)
+        // 2. App State & Helpers (เชื่อมเฉพาะ /api/lab แยกจากเว็บเดิม)
         // ============================================================
         const API_BASE = '/api/lab';
-        let products = [];
-        let logs = [];
-        let currentBase64Image = '';
-        let editingProductId = null;
-        let searchDebounceTimer = null;
-        let currentDataVersion = '';
-        let scanMode = 'in';
-        let activeStickerProduct = null;
-        let html5Scanner = null;
-        let isCameraRunning = false;
-        let lastScannedCode = '';
-        let lastScannedAt = 0;
+        let products = [], logs = [], currentBase64Image = '', editingProductId = null;
+        let searchDebounceTimer = null, currentDataVersion = '', scanMode = 'in';
+        let activeQrProduct = null, deepLinkProduct = null;
+        let camStream = null, camRaf = null, isCameraRunning = false;
+        let lastScannedCode = '', lastScannedAt = 0, lastFrameAt = 0;
 
         let currentTeam = new URLSearchParams(window.location.search).get('team') || localStorage.getItem('stockmaster_lab_team') || 'team1';
         if (currentTeam !== 'team1' && currentTeam !== 'team2') currentTeam = 'team1';
@@ -515,11 +645,11 @@
                 const osc = ctx.createOscillator(), gain = ctx.createGain();
                 osc.connect(gain); gain.connect(ctx.destination);
                 const now = ctx.currentTime;
-                if (type === 'in') { osc.frequency.setValueAtTime(1050, now); osc.frequency.setValueAtTime(1400, now + 0.05); }
-                else if (type === 'out') { osc.frequency.setValueAtTime(820, now); osc.frequency.setValueAtTime(580, now + 0.05); }
+                if (type === 'in') { osc.frequency.setValueAtTime(920, now); osc.frequency.setValueAtTime(1280, now + 0.06); }
+                else if (type === 'out') { osc.frequency.setValueAtTime(760, now); osc.frequency.setValueAtTime(520, now + 0.06); }
                 else { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, now); }
-                gain.gain.setValueAtTime(0.14, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-                osc.start(now); osc.stop(now + 0.16);
+                gain.gain.setValueAtTime(0.14, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+                osc.start(now); osc.stop(now + 0.17);
                 if (navigator.vibrate) navigator.vibrate(type === 'error' ? [80, 40, 80] : 50);
             } catch (e) {}
         }
@@ -531,8 +661,7 @@
             toast.textContent = isError ? `⚠️ ${message}` : `✓ ${message}`;
             toast.style.display = 'flex';
             toast.style.opacity = '1';
-            clearTimeout(window._tTimer);
-            clearTimeout(window._tHideTimer);
+            clearTimeout(window._tTimer); clearTimeout(window._tHideTimer);
             window._tTimer = setTimeout(() => {
                 toast.style.opacity = '0';
                 window._tHideTimer = setTimeout(() => { toast.style.display = 'none'; }, 320);
@@ -646,8 +775,8 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         <div class="flex items-center justify-center gap-1.5">
-                            <button type="button" onclick="openStickerModal(${p.id})" title="ดูและพิมพ์บาร์โค้ด" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer">
-                                <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>
+                            <button type="button" onclick="openQrStickerModal(${p.id})" title="ดูและพิมพ์ QR Code" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer">
+                                <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3h-3M14 20h7"/></svg>
                             </button>
                             <button type="button" onclick="editProduct(${p.id})" title="แก้ไขสินค้า" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer">
                                 <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -713,7 +842,7 @@
         }
 
         // ============================================================
-        // Scan Barcode Modal & Camera (Wide 1D Barcode Reticle!)
+        // 3. QR Scanner (Direct getUserMedia + jsQR — ติดไวทุกมือถือแนวตั้ง!)
         // ============================================================
         function openScanModal() {
             const modal = document.getElementById('scanModal');
@@ -722,17 +851,13 @@
             modal.style.display = 'flex';
             try { setScanMode(scanMode); } catch (e) {}
             try { if (window.lucide) lucide.createIcons(); } catch (e) {}
-            setTimeout(() => {
-                try { document.getElementById('barcodeManualInput')?.focus(); } catch (e) {}
-            }, 80);
+            setTimeout(() => { try { document.getElementById('qrManualInput')?.focus(); } catch (e) {} }, 80);
         }
+
         function closeScanModal() {
             stopCameraScanner();
             const modal = document.getElementById('scanModal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = '';
-            }
+            if (modal) { modal.classList.add('hidden'); modal.style.display = ''; }
         }
 
         function setScanMode(mode) {
@@ -765,12 +890,120 @@
             });
         }
 
-        async function executeBarcodeScan(rawCode, options = {}) {
+        async function startCameraScanner() {
+            if (isCameraRunning) return;
+            const status = document.getElementById('cameraStatus');
+            const wrap = document.getElementById('camWrap');
+            const video = document.getElementById('camVideo');
+            const canvas = document.getElementById('camCanvas');
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                status.textContent = 'เบราว์เซอร์ไม่รองรับกล้อง (กรุณาเปิดผ่าน Safari/Chrome บนเว็บ https://)';
+                return;
+            }
+            if (typeof window.jsQR !== 'function') {
+                status.textContent = 'กำลังโหลดตัวอ่าน QR ไม่เสร็จ กรุณารีเฟรชหน้าเว็บแล้วลองใหม่';
+                return;
+            }
+
+            status.textContent = 'กำลังเปิดกล้อง...';
+            try {
+                try {
+                    camStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                        audio: false
+                    });
+                } catch (e1) {
+                    camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                }
+
+                video.srcObject = camStream;
+                video.setAttribute('playsinline', 'true');
+                await video.play();
+
+                isCameraRunning = true;
+                wrap.classList.remove('hidden');
+                document.getElementById('startCamBtn').classList.add('hidden');
+                document.getElementById('stopCamBtn').classList.remove('hidden');
+                status.textContent = 'กล้องพร้อมแล้ว — หันไปที่ QR Code ได้เลย (จับได้ทุกมุม 360°)';
+
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                const tick = (ts) => {
+                    if (!isCameraRunning) return;
+                    if (video.readyState === video.HAVE_ENOUGH_DATA && ts - lastFrameAt > 85) {
+                        lastFrameAt = ts;
+                        const vw = video.videoWidth, vh = video.videoHeight;
+                        if (vw > 0 && vh > 0) {
+                            const scale = Math.min(1, 640 / Math.max(vw, vh));
+                            const w = Math.floor(vw * scale), h = Math.floor(vh * scale);
+                            if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+                            ctx.drawImage(video, 0, 0, w, h);
+                            const imgData = ctx.getImageData(0, 0, w, h);
+                            const qr = jsQR(imgData.data, w, h, { inversionAttempts: 'attemptBoth' });
+                            if (qr && qr.data) {
+                                const now = Date.now();
+                                if (qr.data !== lastScannedCode || now - lastScannedAt > 1800) {
+                                    lastScannedCode = qr.data;
+                                    lastScannedAt = now;
+                                    status.textContent = `สแกนเจอ QR: ${qr.data}`;
+                                    executeQrScan(qr.data, { source: 'กล้องมือถือ (QR)' });
+                                }
+                            }
+                        }
+                    }
+                    camRaf = requestAnimationFrame(tick);
+                };
+                camRaf = requestAnimationFrame(tick);
+            } catch (err) {
+                status.textContent = 'เปิดกล้องไม่สำเร็จ: กรุณาเปิดผ่าน Safari/Chrome และกดอนุญาตสิทธิ์กล้อง';
+                stopCameraScanner();
+            }
+        }
+
+        function stopCameraScanner() {
+            isCameraRunning = false;
+            if (camRaf) { cancelAnimationFrame(camRaf); camRaf = null; }
+            if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+            const video = document.getElementById('camVideo');
+            if (video) video.srcObject = null;
+            document.getElementById('camWrap')?.classList.add('hidden');
+            document.getElementById('startCamBtn')?.classList.remove('hidden');
+            document.getElementById('stopCamBtn')?.classList.add('hidden');
+        }
+
+        function scanQrFromImage(e) {
+            const file = e.target.files?.[0]; e.target.value = '';
+            if (!file || typeof window.jsQR !== 'function') return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const c = document.getElementById('camCanvas');
+                    const scale = Math.min(1, 1000 / Math.max(img.width, img.height));
+                    c.width = Math.floor(img.width * scale);
+                    c.height = Math.floor(img.height * scale);
+                    const ctx = c.getContext('2d', { willReadFrequently: true });
+                    ctx.drawImage(img, 0, 0, c.width, c.height);
+                    const imgData = ctx.getImageData(0, 0, c.width, c.height);
+                    const qr = jsQR(imgData.data, c.width, c.height, { inversionAttempts: 'attemptBoth' });
+                    if (qr && qr.data) {
+                        executeQrScan(qr.data, { source: 'รูปภาพ QR' });
+                    } else {
+                        playBeep('error');
+                        showToast('ไม่พบ QR Code ในรูปภาพนี้ กรุณาลองรูปที่ชัดขึ้น', true);
+                    }
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function executeQrScan(rawCode, options = {}) {
             const code = String(rawCode || '').trim();
             if (!code) return;
             const mode = options.mode || scanMode;
             const amount = Math.max(1, parseInt(options.amount || document.getElementById('scanAmountInput').value || '1', 10));
-            const source = options.source || 'สแกนบาร์โค้ด';
+            const source = options.source || 'สแกน QR';
 
             try {
                 const res = await fetch(`${API_BASE}/scan`, {
@@ -782,7 +1015,7 @@
                 if (res.status === 404 && data.notFound) {
                     playBeep('error');
                     closeScanModal();
-                    openModalWithBarcode(data.qrCode, amount);
+                    openModalWithQr(data.qrCode, amount);
                     return;
                 }
                 if (!res.ok) {
@@ -795,7 +1028,7 @@
                 playBeep(mode);
                 const prod = data.product;
                 const msg = `${mode === 'in' ? 'รับเข้า' : 'เบิกออก'} ${data.amount} ชิ้น — ${prod.name} (${data.oldQuantity} → ${data.newQuantity})`;
-                showLastScanBanner(mode, msg, `บาร์โค้ด ${prod.qrCode}${data.lowStock ? ' • สต็อกใกล้หมด!' : ''}`, data.logId);
+                showLastScanBanner(mode, msg, `รหัส ${prod.qrCode}${data.lowStock ? ' • สต็อกใกล้หมด!' : ''}`, data.logId);
                 showToast(msg);
                 await Promise.all([fetchProducts(), fetchLogs()]);
                 flashProductRow(prod.id, mode);
@@ -807,10 +1040,10 @@
 
         function handleManualScanSubmit(e) {
             e.preventDefault();
-            const inp = document.getElementById('barcodeManualInput');
+            const inp = document.getElementById('qrManualInput');
             const code = inp.value.trim(); if (!code) return;
             inp.value = '';
-            executeBarcodeScan(code, { source: 'เครื่องยิงบาร์โค้ด' });
+            executeQrScan(code, { source: 'เครื่องยิง QR / พิมพ์รหัส' });
             inp.focus();
         }
 
@@ -842,84 +1075,13 @@
             row.classList.add(mode === 'in' ? 'flash-in' : 'flash-out');
         }
 
-        async function startCameraScanner() {
-            if (isCameraRunning) return;
-            const readerEl = document.getElementById('barcodeReader');
-            const status = document.getElementById('cameraStatus');
-            if (!window.Html5Qrcode) {
-                status.textContent = 'โหลดตัวอ่านกล้องไม่สำเร็จ กรุณารีเฟรชหน้าเว็บ';
-                return;
-            }
-            readerEl.classList.remove('hidden');
-            status.textContent = 'กำลังเปิดกล้อง...';
-            try {
-                html5Scanner = new Html5Qrcode('barcodeReader', {
-                    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-                    verbose: false
-                });
-                // กรอบสแกนแนวนอนกว้าง ออกแบบมาสำหรับบาร์โค้ด 1D (EAN-13, Code-128) บนมือถือโดยเฉพาะ
-                const config = {
-                    fps: 15,
-                    qrbox: (w, h) => ({
-                        width: Math.max(200, Math.floor(w * 0.85)),
-                        height: Math.max(95, Math.floor(h * 0.42))
-                    }),
-                    aspectRatio: 1.5
-                };
-                const onSuccess = (decodedText) => {
-                    const now = Date.now();
-                    if (decodedText === lastScannedCode && now - lastScannedAt < 1800) return;
-                    lastScannedCode = decodedText; lastScannedAt = now;
-                    status.textContent = `สแกนติดแล้ว: ${decodedText}`;
-                    executeBarcodeScan(decodedText, { source: 'กล้องมือถือ (บาร์โค้ด)' });
-                };
-                try {
-                    await html5Scanner.start({ facingMode: 'environment' }, config, onSuccess, () => {});
-                } catch (backErr) {
-                    const cams = await Html5Qrcode.getCameras();
-                    if (!cams || !cams.length) throw backErr;
-                    await html5Scanner.start(cams[cams.length - 1].id, config, onSuccess, () => {});
-                }
-                isCameraRunning = true;
-                document.getElementById('startCamBtn').classList.add('hidden');
-                document.getElementById('stopCamBtn').classList.remove('hidden');
-                status.textContent = 'กล้องพร้อมแล้ว — วางแถบบาร์โค้ดแนวนอนให้อยู่ในกรอบ (ห่างประมาณ 15-20 ซม.)';
-            } catch (e) {
-                readerEl.classList.add('hidden');
-                status.textContent = 'เปิดกล้องไม่สำเร็จ: กรุณาเปิดผ่าน Safari/Chrome บนเว็บ https:// และกดอนุญาตสิทธิ์กล้อง';
-            }
-        }
-
-        async function stopCameraScanner() {
-            if (html5Scanner && isCameraRunning) {
-                try { await html5Scanner.stop(); await html5Scanner.clear(); } catch (e) {}
-            }
-            isCameraRunning = false;
-            document.getElementById('barcodeReader').classList.add('hidden');
-            document.getElementById('startCamBtn').classList.remove('hidden');
-            document.getElementById('stopCamBtn').classList.add('hidden');
-        }
-
-        async function scanBarcodeFromImage(e) {
-            const file = e.target.files?.[0]; e.target.value = '';
-            if (!file || !window.Html5Qrcode) return;
-            try {
-                let d = document.getElementById('barcodeFileTemp');
-                if (!d) { d = document.createElement('div'); d.id = 'barcodeFileTemp'; d.style.display = 'none'; document.body.appendChild(d); }
-                const decoded = await new Html5Qrcode('barcodeFileTemp').scanFile(file, true);
-                executeBarcodeScan(decoded, { source: 'รูปภาพบาร์โค้ด' });
-            } catch (err) {
-                showToast('ไม่พบบาร์โค้ดในรูปภาพนี้', true);
-            }
-        }
-
         // ============================================================
-        // Add / Edit Product Modal
+        // 4. Add / Edit Product Modal
         // ============================================================
         function openModal() {
             editingProductId = null; currentBase64Image = '';
             document.getElementById('modalTitle').innerText = 'เพิ่มสินค้าใหม่ (' + getTeamDisplayName() + ')';
-            document.getElementById('newBarcodeHint').classList.add('hidden');
+            document.getElementById('newQrHint').classList.add('hidden');
             document.getElementById('productForm').reset();
             document.getElementById('formQuantity').value = 1;
             document.getElementById('formMinStock').value = 5;
@@ -927,10 +1089,10 @@
             document.getElementById('productModal').classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
         }
-        function openModalWithBarcode(code, qty = 1) {
+        function openModalWithQr(qrCode, qty = 1) {
             openModal();
-            document.getElementById('newBarcodeHint').classList.remove('hidden');
-            document.getElementById('formBarcode').value = code;
+            document.getElementById('newQrHint').classList.remove('hidden');
+            document.getElementById('formQrCode').value = qrCode;
             document.getElementById('formQuantity').value = qty;
             setTimeout(() => document.getElementById('formName').focus(), 60);
         }
@@ -938,8 +1100,8 @@
             const p = products.find(item => Number(item.id) === Number(id)); if (!p) return;
             editingProductId = p.id; currentBase64Image = p.image || '';
             document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลสินค้า (' + getTeamDisplayName() + ')';
-            document.getElementById('newBarcodeHint').classList.add('hidden');
-            document.getElementById('formBarcode').value = p.qrCode || '';
+            document.getElementById('newQrHint').classList.add('hidden');
+            document.getElementById('formQrCode').value = p.qrCode || '';
             document.getElementById('formName').value = p.name || '';
             document.getElementById('formSize').value = p.size || p.sku || '';
             document.getElementById('formCategory').value = p.category || 'น้ำพริก';
@@ -955,10 +1117,8 @@
 
         async function handleFormSubmit(e) {
             e.preventDefault();
-            const rawBc = document.getElementById('formBarcode').value.trim();
-            const autoBc = rawBc || `885${Math.floor(1000000000 + Math.random() * 8999999999)}`;
             const body = {
-                qrCode: autoBc,
+                qrCode: document.getElementById('formQrCode').value.trim(),
                 name: document.getElementById('formName').value.trim(),
                 size: document.getElementById('formSize').value.trim(),
                 category: document.getElementById('formCategory').value,
@@ -1020,56 +1180,102 @@
         });
 
         // ============================================================
-        // Barcode Sticker Modal, Print Sheet & Exports
+        // 5. QR Sticker, Print Sheet, Deep-Link & Exports
         // ============================================================
-        function openStickerModal(id) {
+        function buildQrPayload(qrCode, type) {
+            const base = `${window.location.origin}${window.location.pathname}`;
+            if (type === 'url') return `${base}?qr=${encodeURIComponent(qrCode)}`;
+            if (type === 'url_out') return `${base}?qr=${encodeURIComponent(qrCode)}&mode=out&auto=1`;
+            if (type === 'url_in') return `${base}?qr=${encodeURIComponent(qrCode)}&mode=in&auto=1`;
+            return qrCode;
+        }
+        function openQrStickerModal(id) {
             const p = products.find(x => Number(x.id) === Number(id)); if (!p) return;
-            activeStickerProduct = p;
-            Barcode128.drawCanvas(document.getElementById('stickerCanvas'), p.qrCode, 74, 2);
-            document.getElementById('stickerName').textContent = p.name;
-            document.getElementById('stickerSub').textContent = `${p.size || p.sku || ''} • ${getTeamDisplayName(p.team)}`;
-            document.getElementById('stickerCodeText').textContent = p.qrCode;
-            document.getElementById('barcodeStickerModal').classList.remove('hidden');
+            activeQrProduct = p;
+            document.getElementById('qrStickerModal').classList.remove('hidden');
+            renderActiveQrSticker();
             if (window.lucide) lucide.createIcons();
         }
-        function closeStickerModal() { document.getElementById('barcodeStickerModal').classList.add('hidden'); }
-        function downloadActiveBarcodePng() {
-            if (!activeStickerProduct) return;
-            const src = document.getElementById('stickerCanvas');
-            const out = document.createElement('canvas');
-            out.width = Math.max(320, src.width + 40); out.height = src.height + 100;
+        function renderActiveQrSticker() {
+            if (!activeQrProduct) return;
+            const type = document.getElementById('qrPayloadTypeSelect').value;
+            QRGen.drawToCanvas(document.getElementById('qrStickerCanvas'), buildQrPayload(activeQrProduct.qrCode, type), 220);
+            document.getElementById('qrStickerName').textContent = activeQrProduct.name;
+            document.getElementById('qrStickerSub').textContent = `${activeQrProduct.size || activeQrProduct.sku || ''} • ${getTeamDisplayName(activeQrProduct.team)}`;
+            document.getElementById('qrStickerCodeText').textContent = activeQrProduct.qrCode;
+        }
+        function closeQrStickerModal() { document.getElementById('qrStickerModal').classList.add('hidden'); }
+        function downloadActiveQrPng() {
+            if (!activeQrProduct) return;
+            const src = document.getElementById('qrStickerCanvas');
+            const out = document.createElement('canvas'); out.width = 300; out.height = 370;
             const ctx = out.getContext('2d');
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, out.width, out.height);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 300, 370);
+            ctx.drawImage(src, 40, 20, 220, 220);
             ctx.fillStyle = '#0f172a'; ctx.textAlign = 'center';
-            ctx.font = 'bold 16px sans-serif'; ctx.fillText(activeStickerProduct.name.slice(0, 28), out.width / 2, 28);
-            ctx.font = '12px sans-serif'; ctx.fillStyle = '#475569'; ctx.fillText(activeStickerProduct.size || '', out.width / 2, 48);
-            ctx.drawImage(src, (out.width - src.width) / 2, 54);
-            ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#0f172a'; ctx.fillText(activeStickerProduct.qrCode, out.width / 2, out.height - 14);
-            const a = document.createElement('a'); a.download = `BARCODE_${activeStickerProduct.qrCode}.png`; a.href = out.toDataURL('image/png'); a.click();
+            ctx.font = 'bold 16px sans-serif'; ctx.fillText(activeQrProduct.name.slice(0, 24), 150, 272);
+            ctx.font = '13px sans-serif'; ctx.fillStyle = '#475569'; ctx.fillText(activeQrProduct.size || '', 150, 296);
+            ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#0f172a'; ctx.fillText(activeQrProduct.qrCode, 150, 332);
+            const a = document.createElement('a'); a.download = `QR_${activeQrProduct.qrCode}.png`; a.href = out.toDataURL('image/png'); a.click();
         }
         function simulateScanFromModal() {
-            if (!activeStickerProduct) return;
-            const code = activeStickerProduct.qrCode;
-            closeStickerModal(); openScanModal();
-            executeBarcodeScan(code, { source: 'ทดลองยิงบาร์โค้ด' });
+            if (!activeQrProduct) return;
+            const code = activeQrProduct.qrCode;
+            closeQrStickerModal(); openScanModal();
+            executeQrScan(code, { source: 'ทดลองสแกน QR' });
         }
 
-        function openPrintSheetModal() {
-            const area = document.getElementById('printSheetArea');
-            area.innerHTML = products.map(p => `
-                <div class="bg-white border border-slate-300 rounded-xl p-3 text-center space-y-1.5">
-                    <div class="text-xs font-bold text-slate-900 truncate">${escapeHtml(p.name)}</div>
-                    <div class="text-[11px] text-slate-500">${escapeHtml(p.size || p.sku || '-')} • ${escapeHtml(getTeamDisplayName(p.team))}</div>
-                    <div class="px-1">${Barcode128.toSvg(p.qrCode, 44)}</div>
-                    <div class="text-xs font-mono font-bold tracking-widest text-slate-900">${escapeHtml(p.qrCode)}</div>
-                </div>`).join('');
-            document.getElementById('printSheetModal').classList.remove('hidden');
-        }
+        function openPrintSheetModal() { document.getElementById('printSheetModal').classList.remove('hidden'); buildPrintSheet(); }
         function closePrintSheetModal() { document.getElementById('printSheetModal').classList.add('hidden'); }
+        function buildPrintSheet() {
+            const area = document.getElementById('printSheetArea');
+            const type = document.getElementById('sheetPayloadType').value;
+            area.innerHTML = products.map(p => `
+                <div class="bg-white border border-slate-300 rounded-xl p-3 text-center flex flex-col items-center gap-1">
+                    <div class="text-[10px] font-bold text-slate-400">${escapeHtml(getTeamDisplayName(p.team))}</div>
+                    <div>${QRGen.toSvg(buildQrPayload(p.qrCode, type), 120)}</div>
+                    <div class="text-xs font-bold text-slate-900">${escapeHtml(p.name)}</div>
+                    <div class="text-[11px] text-slate-500">${escapeHtml(p.size || p.sku || '-')}</div>
+                    <div class="text-[11px] font-mono font-bold bg-slate-100 px-2 py-0.5 rounded">${escapeHtml(p.qrCode)}</div>
+                </div>`).join('');
+        }
+
+        async function handleInitialUrlScan() {
+            const params = new URLSearchParams(window.location.search);
+            const qr = params.get('qr') || params.get('code');
+            if (!qr) return;
+            const mode = params.get('mode');
+            const auto = params.get('auto') === '1';
+            const amount = parseInt(params.get('amount') || '1', 10) || 1;
+            if (mode === 'in' || mode === 'out') setScanMode(mode);
+            if (auto && (mode === 'in' || mode === 'out')) {
+                await executeQrScan(qr, { mode, amount, source: 'ลิงก์ QR มือถือ' });
+                return;
+            }
+            const res = await fetch(`${API_BASE}/lookup?qr=${encodeURIComponent(qr)}`);
+            const data = await res.json();
+            if (res.ok && data.found) {
+                deepLinkProduct = data.product;
+                document.getElementById('dlName').textContent = deepLinkProduct.name;
+                document.getElementById('dlMeta').textContent = `รหัส ${deepLinkProduct.qrCode} • ${deepLinkProduct.size || '-'}`;
+                document.getElementById('dlQty').textContent = deepLinkProduct.quantity;
+                document.getElementById('dlAmount').value = amount;
+                document.getElementById('deepLinkModal').classList.remove('hidden');
+            } else {
+                openModalWithQr(qr, amount);
+            }
+        }
+        function closeDeepLinkModal() { document.getElementById('deepLinkModal').classList.add('hidden'); }
+        async function executeDeepLinkAction(mode) {
+            if (!deepLinkProduct) return;
+            const amt = Math.max(1, parseInt(document.getElementById('dlAmount').value, 10) || 1);
+            closeDeepLinkModal();
+            await executeQrScan(deepLinkProduct.qrCode, { mode, amount: amt, source: 'ลิงก์ QR มือถือ' });
+        }
 
         function exportToExcel() {
             if (!products.length) return alert('ไม่มีข้อมูลสำหรับส่งออก');
-            const rows = products.map(p => ({ 'บาร์โค้ด': p.qrCode, 'SKU / ขนาด': p.size || p.sku || '-', 'ชื่อสินค้า': p.name, 'หมวดหมู่': p.category, 'จำนวนคงเหลือ': p.quantity, 'จุดเตือนสต็อกต่ำ': p.minStock }));
+            const rows = products.map(p => ({ 'รหัส QR': p.qrCode, 'SKU / ขนาด': p.size || p.sku || '-', 'ชื่อสินค้า': p.name, 'หมวดหมู่': p.category, 'จำนวนคงเหลือ': p.quantity, 'จุดเตือนสต็อกต่ำ': p.minStock }));
             const ws = XLSX.utils.json_to_sheet(rows);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'StockData');
@@ -1082,7 +1288,7 @@
             div.style.padding = '20px'; div.style.background = '#fff'; div.style.color = '#1e293b';
             div.innerHTML = `<h2 style="text-align:center;font-weight:bold;">รายงานสินค้า - ${getTeamDisplayName()}</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:12px;">
-                <thead><tr style="background:#f1f5f9;"><th style="border:1px solid #cbd5e1;padding:6px;">บาร์โค้ด</th><th style="border:1px solid #cbd5e1;padding:6px;">ขนาด/SKU</th><th style="border:1px solid #cbd5e1;padding:6px;">ชื่อสินค้า</th><th style="border:1px solid #cbd5e1;padding:6px;">หมวดหมู่</th><th style="border:1px solid #cbd5e1;padding:6px;">คงเหลือ</th></tr></thead>
+                <thead><tr style="background:#f1f5f9;"><th style="border:1px solid #cbd5e1;padding:6px;">QR</th><th style="border:1px solid #cbd5e1;padding:6px;">ขนาด/SKU</th><th style="border:1px solid #cbd5e1;padding:6px;">ชื่อสินค้า</th><th style="border:1px solid #cbd5e1;padding:6px;">หมวดหมู่</th><th style="border:1px solid #cbd5e1;padding:6px;">คงเหลือ</th></tr></thead>
                 <tbody>${products.map(p => `<tr><td style="border:1px solid #e2e8f0;padding:6px;font-family:monospace;">${escapeHtml(p.qrCode)}</td><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(p.size||'-')}</td><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(p.name)}</td><td style="border:1px solid #e2e8f0;padding:6px;">${escapeHtml(p.category)}</td><td style="border:1px solid #e2e8f0;padding:6px;text-align:center;">${p.quantity}</td></tr>`).join('')}</tbody></table>`;
             html2pdf().set({ margin: 0.4, filename: `รายงานสินค้า_${getTeamDisplayName()}.pdf`, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } }).from(div).save();
         }
@@ -1102,6 +1308,7 @@
             updateTeamButtonsUI();
             if (window.lucide) lucide.createIcons();
             await Promise.all([fetchProducts(), fetchLogs()]);
+            await handleInitialUrlScan();
             setInterval(checkDataHeartbeat, 1500);
         };
     </script>
