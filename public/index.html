@@ -40,7 +40,7 @@
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans antialiased">
 
-    <!-- Header (หน้าตา StockMaster เดิม + ปุ่มสแกน QR) -->
+    <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-20 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -50,6 +50,7 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <h1 class="text-xl font-bold text-slate-900 tracking-tight">StockMaster</h1>
+                        <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">v4-QR</span>
                         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> ซิงก์เรียลไทม์
                         </span>
@@ -133,7 +134,7 @@
             <div class="flex flex-col sm:flex-row gap-2.5 flex-1">
                 <div class="relative flex-1">
                     <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                    <input id="searchInput" type="text" oninput="renderProducts()" placeholder="ค้นหาชื่อสินค้า, SKU, รหัส QR หรือหมวดหมู่..." class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+                    <input id="searchInput" type="text" oninput="renderProducts()" placeholder="ค้นหาชื่อสินค้า, ขนาด/SKU, รหัส QR หรือหมวดหมู่..." class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
                 </div>
                 <select id="categoryFilter" onchange="renderProducts()" class="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
                     <option value="">ทุกหมวดหมู่</option>
@@ -226,17 +227,17 @@
                 <input type="hidden" id="editProductId">
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อสินค้า *</label>
-                    <input id="inputName" type="text" required placeholder="เช่น น้ำพริกนรกปลาย่าง 100g" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                    <input id="inputName" type="text" required placeholder="เช่น น้ำพริกนรกปลาย่าง" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">รหัสสินค้า (SKU) *</label>
-                        <input id="inputSku" type="text" required placeholder="เช่น NP-001" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">ขนาด / รหัส (Size / SKU)</label>
+                        <input id="inputSize" type="text" placeholder="เช่น 100g / กระปุกใหญ่" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">รหัส QR (เว้นว่างจะใช้ตาม SKU)</label>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">รหัส QR (เว้นว่างจะสุ่มให้อัตโนมัติ)</label>
                         <div class="flex gap-1.5">
-                            <input id="inputQrCode" type="text" placeholder="เช่น NP-001" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                            <input id="inputQrCode" type="text" placeholder="เช่น SM-NP-001" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
                             <button type="button" onclick="autoFillQrCode()" title="สร้างรหัสอัตโนมัติ" class="px-2.5 py-2 text-xs font-semibold border border-slate-300 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 shrink-0 cursor-pointer">สุ่ม</button>
                         </div>
                     </div>
@@ -244,11 +245,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">หมวดหมู่</label>
-                        <input id="inputCategory" type="text" placeholder="เช่น น้ำพริก / แพ็กเกจจิ้ง" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                        <input id="inputCategory" type="text" value="น้ำพริก" placeholder="เช่น น้ำพริก / แพ็กเกจจิ้ง" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">หน่วยนับ</label>
-                        <input id="inputUnit" type="text" value="ชิ้น" placeholder="ชิ้น / กระปุก / กล่อง" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">ราคา (บาท)</label>
+                        <input id="inputPrice" type="number" min="0" step="any" value="0" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -269,7 +270,7 @@
         </div>
     </div>
 
-    <!-- Modal: สแกน QR Code (รับเข้า / เบิกออกทันที) -->
+    <!-- Modal: สแกน QR Code -->
     <div id="scanModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 no-print">
         <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[94vh] flex flex-col overflow-hidden">
             <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between shrink-0">
@@ -288,7 +289,7 @@
             </div>
 
             <div class="p-4 sm:p-5 space-y-4 overflow-y-auto">
-                <!-- เลือกโหมด รับเข้า / เบิกออก -->
+                <!-- โหมด รับเข้า / เบิกออก -->
                 <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
                     <button id="scanModeOutBtn" type="button" onclick="setScanMode('out')" class="py-2.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 bg-rose-600 text-white shadow-sm cursor-pointer">
                         <i data-lucide="minus-circle" class="w-4 h-4 pointer-events-none"></i> เบิกออก (-)
@@ -298,7 +299,7 @@
                     </button>
                 </div>
 
-                <!-- เลือกจำนวนต่อการสแกน 1 ครั้ง -->
+                <!-- จำนวนต่อการสแกน 1 ครั้ง -->
                 <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
                     <span class="text-xs font-semibold text-slate-700">จำนวนต่อสแกน</span>
                     <div class="flex items-center gap-1.5">
@@ -315,7 +316,6 @@
                     <video id="qrVideo" class="w-full h-full object-cover hidden" playsinline muted autoplay></video>
                     <canvas id="qrCanvas" class="hidden"></canvas>
 
-                    <!-- กรอบเล็ง QR -->
                     <div id="cameraGuideOverlay" class="hidden pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                         <div class="w-48 h-48 sm:w-52 sm:h-52 border-2 border-emerald-400/90 rounded-2xl shadow-[0_0_0_9999px_rgba(15,23,42,0.35)]"></div>
                         <span id="scanCameraBadge" class="mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-600/90 text-white shadow">
@@ -323,7 +323,6 @@
                         </span>
                     </div>
 
-                    <!-- Placeholder ก่อนเปิดกล้อง -->
                     <div id="cameraPlaceholder" class="text-center p-6 text-slate-300 space-y-2">
                         <div class="w-12 h-12 mx-auto rounded-xl bg-slate-800 flex items-center justify-center text-emerald-400">
                             <i data-lucide="camera" class="w-6 h-6"></i>
@@ -346,7 +345,29 @@
                     </button>
                 </div>
 
-                <!-- ผลลัพธ์การสแกนล่าสุด + ปุ่ม Undo 1 แตะ -->
+                <!-- กล่องผูก QR อัตโนมัติ เมื่อเจอ QR ที่ยังไม่เคยลงทะเบียน -->
+                <div id="unknownQrCard" class="hidden rounded-xl border border-amber-300 bg-amber-50 p-3.5 space-y-2.5">
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <p class="text-xs font-bold text-amber-800">ยังไม่พบ QR นี้ในคลัง — เลือกผูกกับสินค้าได้เลย:</p>
+                            <p id="unknownQrCodeText" class="text-xs font-mono text-amber-900 bg-white/80 px-2 py-1 rounded border border-amber-200 mt-1 break-all"></p>
+                        </div>
+                        <button type="button" onclick="hideUnknownQrCard()" class="text-amber-600 hover:text-amber-900 text-xs font-bold px-1.5 cursor-pointer">✕</button>
+                    </div>
+                    <div class="space-y-2">
+                        <select id="linkExistingProductSelect" class="w-full px-2.5 py-2 text-xs sm:text-sm border border-amber-300 rounded-lg bg-white text-slate-800"></select>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="linkUnknownQrToProduct()" class="flex-1 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer">
+                                ผูก QR กับสินค้านี้และบันทึก
+                            </button>
+                            <button type="button" onclick="createProductFromUnknownQr()" class="px-3 py-2 rounded-lg bg-white border border-amber-400 text-amber-900 hover:bg-amber-100 text-xs font-bold cursor-pointer">
+                                + เพิ่มสินค้าใหม่
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ผลลัพธ์การสแกนล่าสุด -->
                 <div id="lastScanCard" class="hidden rounded-xl border p-3.5 space-y-2">
                     <div class="flex items-start justify-between gap-2">
                         <div>
@@ -363,9 +384,9 @@
                     </div>
                 </div>
 
-                <!-- พิมพ์หรือยิงรหัสด้วยมือ / เครื่องสแกน USB -->
+                <!-- พิมพ์หรือยิงรหัสด้วยมือ -->
                 <div class="pt-2 border-t border-slate-200">
-                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">หรือพิมพ์รหัส QR / SKU (รองรับเครื่องยิง USB)</label>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">หรือพิมพ์รหัส QR (รองรับเครื่องยิง USB)</label>
                     <form onsubmit="handleManualQrSubmit(event)" class="flex gap-2">
                         <input id="manualQrInput" type="text" placeholder="พิมพ์หรือยิงรหัสแล้วกด Enter..." class="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
                         <button type="submit" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs sm:text-sm font-semibold cursor-pointer">ยืนยัน</button>
@@ -412,7 +433,7 @@
         <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
                 <h3 class="text-sm font-bold text-slate-900">พบสินค้าจาก QR Code</h3>
-                <button type="button" onclick="closeDeepLinkModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer">
+                <button type="button" onclick="closeDeepLinkModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer">
                     <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
                 </button>
             </div>
@@ -438,10 +459,10 @@
         </div>
     </div>
 
-    <!-- พื้นที่สำหรับพิมพ์สติกเกอร์ QR (แสดงเฉพาะตอนสั่ง Print) -->
+    <!-- พื้นที่พิมพ์สติกเกอร์ -->
     <div id="printSheetArea" class="hidden"></div>
 
-    <!-- Toast แจ้งเตือนมุมขวาล่าง (ไม่บังปุ่มหัวเว็บ) -->
+    <!-- Toast มุมขวาล่าง -->
     <div id="toastNotification" class="fixed bottom-5 right-5 z-[60] pointer-events-none hidden transition-opacity duration-300 opacity-0">
         <div id="toastInner" class="px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-semibold flex items-center gap-2 bg-slate-900 text-white border-slate-700">
             <span id="toastMessage"></span>
@@ -455,7 +476,6 @@
             team2: 'ทีมมหาเทพ'
         };
 
-        // สถานะหลักของแอป
         let currentTeam = localStorage.getItem('sm_qr_team') || 'team1';
         let products = [];
         let logs = [];
@@ -465,7 +485,7 @@
         let lastFlashedProductId = null;
         let lastFlashType = null;
 
-        // สถานะกล้องและการสแกน QR (พร้อมระบบป้องกันสแกนเบิ้ล + ล็อกคำขอซ้อน)
+        // สถานะกล้องและการสแกน QR
         let currentScanMode = 'out';
         let isCameraActive = false;
         let currentFacingMode = 'environment';
@@ -477,13 +497,12 @@
         let missCount = 0;
         let isScanRequestInFlight = false;
         let lastScanLogId = null;
+        let pendingUnknownQrCode = '';
 
-        // สถานะสติกเกอร์ QR & Deep Link
         let activeStickerProduct = null;
         let stickerFormat = 'url';
         let activeDeepLinkProduct = null;
 
-        // ตัวช่วยจัดการข้อความและข้อมูล
         function escapeHtml(str) {
             return String(str ?? '')
                 .replace(/&/g, '&amp;')
@@ -495,68 +514,61 @@
 
         function normalizeProduct(p) {
             return {
-                id: p.id,
+                id: Number(p.id),
                 name: p.name || '',
-                sku: p.sku || '',
-                qr_code: p.qr_code || p.qrCode || p.sku || '',
-                category: p.category || 'ทั่วไป',
-                quantity: Number(p.quantity ?? p.stock ?? 0),
-                min_stock: Number(p.min_stock ?? p.minStock ?? 5),
-                unit: p.unit || 'ชิ้น',
+                qrCode: p.qrCode || p.qr_code || '',
+                size: p.size || p.sku || '',
+                sku: p.sku || p.size || '',
+                category: p.category || 'น้ำพริก',
+                price: Number(p.price ?? 0),
+                quantity: Number(p.quantity ?? 0),
+                minStock: Number(p.minStock ?? p.min_stock ?? 5),
+                image: p.image || '',
                 team: p.team || currentTeam,
-                updated_at: p.updated_at || p.updatedAt || ''
+                updatedAt: p.updatedAt || p.updated_at || ''
             };
         }
 
         function normalizeLog(l) {
-            const rawType = String(l.type || l.action || '').toLowerCase();
-            const delta = Number(l.change_amount ?? l.amount ?? l.delta ?? 0);
             return {
-                id: l.id,
-                product_id: l.product_id ?? l.productId,
-                product_name: l.product_name || l.productName || l.name || '-',
-                sku: l.sku || '',
-                type: rawType,
-                change_amount: delta,
-                previous_qty: l.previous_qty ?? l.before_qty ?? l.old_qty ?? null,
-                new_qty: l.new_qty ?? l.after_qty ?? null,
+                id: Number(l.id),
+                date: l.date || l.created_at || '-',
+                productId: l.productId ?? l.product_id ?? null,
+                qrCode: l.qrCode || l.qr_code || '',
+                productName: l.productName || l.product_name || '-',
+                type: String(l.type || ''),
+                changeAmount: Number(l.changeAmount ?? l.change_amount ?? 0),
+                amount: Number(l.amount ?? 0),
+                beforeQty: l.beforeQty ?? l.previous_qty ?? null,
+                afterQty: l.afterQty ?? l.new_qty ?? null,
+                source: l.source || '',
                 note: l.note || '',
-                undone: Boolean(l.undone || l.is_undone),
-                created_at: l.created_at || l.timestamp || ''
+                team: l.team || currentTeam,
+                undone: Number(l.undone) === 1
             };
-        }
-
-        function formatThaiDateTime(val) {
-            if (!val) return '-';
-            const d = new Date(val);
-            if (isNaN(d.getTime())) return String(val);
-            return d.toLocaleString('th-TH', {
-                day: '2-digit',
-                month: '2-digit',
-                year: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
         }
 
         function extractCleanQrCode(raw) {
             const text = String(raw || '').trim();
             if (!text) return '';
             try {
-                if (text.startsWith('http://') || text.startsWith('https://')) {
-                    const u = new URL(text);
+                if (/^https?:\/\//i.test(text) || text.includes('?qr=') || text.includes('&qr=')) {
+                    const u = new URL(text.startsWith('http') ? text : `https://local.test/${text.replace(/^\//, '')}`);
                     const q = u.searchParams.get('qr') || u.searchParams.get('code');
                     if (q) return q.trim();
                 }
             } catch (_) {}
-            if (text.toUpperCase().startsWith('SM:')) {
-                return text.slice(3).trim();
-            }
+            try {
+                if (text.startsWith('{') && text.endsWith('}')) {
+                    const obj = JSON.parse(text);
+                    const q = obj.qr || obj.qrCode || obj.code || obj.sku;
+                    if (q) return String(q).trim();
+                }
+            } catch (_) {}
+            if (/^SM:/i.test(text)) return text.slice(3).trim();
             return text;
         }
 
-        // เสียงบี๊บเบาๆ เมื่อสแกนติด
         function playBeep(kind = 'in') {
             try {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -575,7 +587,6 @@
             } catch (_) {}
         }
 
-        // Toast Notification (ไม่บังปุ่มมุมขวาบน)
         let toastTimer = null;
         function showToast(message, type = 'info') {
             const wrapper = document.getElementById('toastNotification');
@@ -598,10 +609,9 @@
             toastTimer = setTimeout(() => {
                 wrapper.classList.add('opacity-0');
                 setTimeout(() => wrapper.classList.add('hidden'), 300);
-            }, 2600);
+            }, 3400);
         }
 
-        // สลับทีม
         function updateTeamUI() {
             const subtitle = document.getElementById('teamHeaderSubtitle');
             const tab1 = document.getElementById('tabTeam1');
@@ -626,7 +636,6 @@
             await loadData(false);
         }
 
-        // โหลดข้อมูลสินค้าและประวัติจาก Backend (ป้องกันข้อมูลเก่าทับข้อมูลใหม่ด้วย dataFetchSeq + no-store)
         async function loadData(silent = false) {
             const reqSeq = ++dataFetchSeq;
             const t = Date.now();
@@ -640,13 +649,10 @@
                 const prodJson = await prodRes.json();
                 const logJson = logRes.ok ? await logRes.json() : [];
 
-                if (reqSeq !== dataFetchSeq) return; // ทิ้งคำตอบที่เก่ากว่า
+                if (reqSeq !== dataFetchSeq) return;
 
-                const rawProducts = Array.isArray(prodJson) ? prodJson : (prodJson.products || []);
-                const rawLogs = Array.isArray(logJson) ? logJson : (logJson.logs || []);
-
-                products = rawProducts.map(normalizeProduct);
-                logs = rawLogs.map(normalizeLog);
+                products = (Array.isArray(prodJson) ? prodJson : []).map(normalizeProduct);
+                logs = (Array.isArray(logJson) ? logJson : []).map(normalizeLog);
 
                 updateCategoryFilter();
                 updateStats();
@@ -664,7 +670,6 @@
             showToast('อัปเดตข้อมูลล่าสุดแล้ว', 'success');
         }
 
-        // ซิงก์เรียลไทม์ (พักอัตโนมัติหลังสแกน 3 วินาที และไม่วิ่งซ้อนขณะกำลังสแกน)
         async function checkDataHeartbeat() {
             if (document.visibilityState !== 'visible') return;
             if (isScanRequestInFlight || Date.now() < suppressHeartbeatUntil) return;
@@ -673,7 +678,7 @@
                 const res = await fetch(`${API_BASE}/version?team=${encodeURIComponent(currentTeam)}&_t=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) return;
                 const data = await res.json();
-                const ver = String(data.version ?? data.updatedAt ?? '');
+                const ver = String(data.v ?? data.version ?? '');
                 if (!ver) return;
 
                 if (lastKnownVersion === null) {
@@ -690,7 +695,7 @@
         function updateStats() {
             const totalItems = products.length;
             const totalStock = products.reduce((sum, p) => sum + p.quantity, 0);
-            const lowStock = products.filter(p => p.quantity <= p.min_stock).length;
+            const lowStock = products.filter(p => p.quantity <= p.minStock).length;
 
             document.getElementById('statTotalItems').textContent = totalItems.toLocaleString('th-TH');
             document.getElementById('statTotalStock').textContent = totalStock.toLocaleString('th-TH');
@@ -714,13 +719,13 @@
 
             return products.filter(p => {
                 if (q) {
-                    const hay = `${p.name} ${p.sku} ${p.qr_code} ${p.category}`.toLowerCase();
+                    const hay = `${p.name} ${p.size} ${p.sku} ${p.qrCode} ${p.category}`.toLowerCase();
                     if (!hay.includes(q)) return false;
                 }
                 if (cat && p.category !== cat) return false;
                 if (status === 'out' && p.quantity > 0) return false;
-                if (status === 'low' && !(p.quantity > 0 && p.quantity <= p.min_stock)) return false;
-                if (status === 'ok' && p.quantity <= p.min_stock) return false;
+                if (status === 'low' && !(p.quantity > 0 && p.quantity <= p.minStock)) return false;
+                if (status === 'ok' && p.quantity <= p.minStock) return false;
                 return true;
             });
         }
@@ -739,7 +744,7 @@
             tbody.innerHTML = list.map(p => {
                 const statusBadge = p.quantity <= 0
                     ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">หมดสต็อก</span>'
-                    : p.quantity <= p.min_stock
+                    : p.quantity <= p.minStock
                     ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">ใกล้หมด</span>'
                     : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">ปกติ</span>';
 
@@ -752,15 +757,15 @@
                         <td class="py-3 px-4">
                             <div class="font-semibold text-slate-900">${escapeHtml(p.name)}</div>
                             <div class="flex flex-wrap items-center gap-1.5 mt-0.5 text-xs text-slate-500">
-                                <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">SKU: ${escapeHtml(p.sku)}</span>
-                                <span class="font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">QR: ${escapeHtml(p.qr_code || p.sku)}</span>
+                                ${p.size ? `<span class="bg-slate-100 px-1.5 py-0.5 rounded">${escapeHtml(p.size)}</span>` : ''}
+                                <span class="font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">QR: ${escapeHtml(p.qrCode || '-')}</span>
                             </div>
                         </td>
                         <td class="py-3 px-4 text-slate-600 text-xs sm:text-sm">${escapeHtml(p.category)}</td>
                         <td class="py-3 px-4">
                             <div class="flex items-center justify-center gap-2">
                                 <button type="button" onclick="quickAdjustStock(${p.id}, -1)" class="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-slate-600 transition cursor-pointer">-</button>
-                                <span class="min-w-[3.2rem] text-center font-bold text-slate-900">${p.quantity.toLocaleString('th-TH')} <span class="text-xs font-normal text-slate-500">${escapeHtml(p.unit)}</span></span>
+                                <span class="min-w-[3.2rem] text-center font-bold text-slate-900">${p.quantity.toLocaleString('th-TH')} <span class="text-xs font-normal text-slate-500">ชิ้น</span></span>
                                 <button type="button" onclick="quickAdjustStock(${p.id}, 1)" class="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-600 font-bold text-slate-600 transition cursor-pointer">+</button>
                             </div>
                         </td>
@@ -797,27 +802,28 @@
             }
 
             tbody.innerHTML = slice.map(l => {
-                const isIn = l.type === 'in' || l.change_amount > 0;
-                const isOut = l.type === 'out' || l.change_amount < 0;
+                const isIn = l.changeAmount > 0 && !l.type.includes('ยกเลิก');
+                const isOut = l.changeAmount < 0 && !l.type.includes('ยกเลิก');
                 const badge = l.undone
                     ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 line-through">ยกเลิกแล้ว</span>'
                     : isIn
-                    ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">รับเข้า</span>'
+                    ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">${escapeHtml(l.type || 'รับเข้า')}</span>`
                     : isOut
-                    ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700">เบิกออก</span>'
+                    ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700">${escapeHtml(l.type || 'เบิกออก')}</span>`
                     : `<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">${escapeHtml(l.type || 'ปรับปรุง')}</span>`;
 
-                const deltaText = l.change_amount > 0 ? `+${l.change_amount}` : `${l.change_amount}`;
-                const qtyRange = (l.previous_qty !== null && l.new_qty !== null)
-                    ? `<span class="text-slate-400 text-[11px] block">${l.previous_qty} → ${l.new_qty}</span>`
+                const deltaText = l.changeAmount > 0 ? `+${l.changeAmount}` : `${l.changeAmount}`;
+                const qtyRange = (l.beforeQty !== null && l.afterQty !== null)
+                    ? `<span class="text-slate-400 text-[11px] block">${l.beforeQty} → ${l.afterQty}</span>`
                     : '';
 
-                const canUndo = !l.undone && (l.type === 'in' || l.type === 'out');
+                const canUndo = !l.undone && Boolean(l.productId) && l.changeAmount !== 0
+                    && !l.type.includes('เพิ่ม') && !l.type.includes('แก้ไข') && !l.type.includes('ยกเลิก');
 
                 return `
                     <tr class="hover:bg-slate-50/70">
-                        <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${escapeHtml(formatThaiDateTime(l.created_at))}</td>
-                        <td class="py-2.5 px-4 font-medium text-slate-800">${escapeHtml(l.product_name)}</td>
+                        <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${escapeHtml(l.date)}</td>
+                        <td class="py-2.5 px-4 font-medium text-slate-800">${escapeHtml(l.productName)}</td>
                         <td class="py-2.5 px-4 text-center">${badge}</td>
                         <td class="py-2.5 px-4 text-center font-bold ${isIn ? 'text-emerald-600' : isOut ? 'text-rose-600' : 'text-slate-600'}">
                             ${escapeHtml(deltaText)}
@@ -832,21 +838,37 @@
             }).join('');
         }
 
-        // ปรับสต็อกด่วนจากปุ่ม +/- ในตาราง
         async function quickAdjustStock(productId, delta) {
+            if (isScanRequestInFlight) return;
             const p = products.find(item => item.id === productId);
-            if (!p || isScanRequestInFlight) return;
-            const code = p.qr_code || p.sku;
-            const mode = delta > 0 ? 'in' : 'out';
-            await executeQrScan(code, {
-                mode,
-                amount: Math.abs(delta),
-                note: 'ปรับสต็อกหน้ารายการ',
-                fromScanner: false
-            });
+            if (!p) return;
+
+            isScanRequestInFlight = true;
+            suppressHeartbeatUntil = Date.now() + 3000;
+            try {
+                const res = await fetch(`${API_BASE}/products/${productId}/stock`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                    body: JSON.stringify({ changeAmount: delta })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'ปรับสต็อกไม่สำเร็จ');
+
+                p.quantity = Number(data.quantity ?? (p.quantity + delta));
+                lastFlashedProductId = p.id;
+                lastFlashType = delta > 0 ? 'in' : 'out';
+                updateStats();
+                renderProducts();
+                showToast(`${p.name} (${delta > 0 ? '+' : ''}${delta}) → คงเหลือ ${p.quantity} ชิ้น`, 'success');
+                await loadData(true);
+            } catch (err) {
+                showToast(err.message || 'ปรับสต็อกไม่สำเร็จ', 'error');
+            } finally {
+                isScanRequestInFlight = false;
+            }
         }
 
-        // เพิ่ม / แก้ไข / ลบสินค้า
         function openModal(productId = null, prefillQr = '') {
             const modal = document.getElementById('productModal');
             const title = document.getElementById('modalTitle');
@@ -859,19 +881,19 @@
                 title.textContent = 'แก้ไขข้อมูลสินค้า';
                 document.getElementById('editProductId').value = p.id;
                 document.getElementById('inputName').value = p.name;
-                document.getElementById('inputSku').value = p.sku;
-                document.getElementById('inputQrCode').value = p.qr_code || p.sku;
-                document.getElementById('inputCategory').value = p.category;
+                document.getElementById('inputSize').value = p.size || p.sku || '';
+                document.getElementById('inputQrCode').value = p.qrCode || '';
+                document.getElementById('inputCategory').value = p.category || 'น้ำพริก';
+                document.getElementById('inputPrice').value = p.price || 0;
                 document.getElementById('inputQuantity').value = p.quantity;
-                document.getElementById('inputMinStock').value = p.min_stock;
-                document.getElementById('inputUnit').value = p.unit || 'ชิ้น';
+                document.getElementById('inputMinStock').value = p.minStock;
             } else {
                 title.textContent = 'เพิ่มสินค้าใหม่';
-                document.getElementById('inputUnit').value = 'ชิ้น';
+                document.getElementById('inputCategory').value = 'น้ำพริก';
+                document.getElementById('inputPrice').value = 0;
                 document.getElementById('inputQuantity').value = 0;
                 document.getElementById('inputMinStock').value = 5;
                 if (prefillQr) {
-                    document.getElementById('inputSku').value = prefillQr;
                     document.getElementById('inputQrCode').value = prefillQr;
                 }
             }
@@ -888,24 +910,26 @@
         }
 
         function autoFillQrCode() {
-            const sku = document.getElementById('inputSku').value.trim();
-            const rand = 'QR-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-            document.getElementById('inputQrCode').value = sku || rand;
+            const prefix = currentTeam === 'team2' ? '8852' : '8851';
+            const rand = Math.floor(100000000 + Math.random() * 899999999);
+            document.getElementById('inputQrCode').value = `${prefix}${rand}`;
         }
 
         async function saveProduct(e) {
             e.preventDefault();
             const id = document.getElementById('editProductId').value;
-            const sku = document.getElementById('inputSku').value.trim();
-            const qrCode = document.getElementById('inputQrCode').value.trim() || sku;
+            const sizeVal = document.getElementById('inputSize').value.trim();
+            const qrVal = document.getElementById('inputQrCode').value.trim();
+
             const payload = {
                 name: document.getElementById('inputName').value.trim(),
-                sku,
-                qr_code: qrCode,
-                category: document.getElementById('inputCategory').value.trim() || 'ทั่วไป',
-                quantity: Math.max(0, Number(document.getElementById('inputQuantity').value || 0)),
-                min_stock: Math.max(0, Number(document.getElementById('inputMinStock').value || 5)),
-                unit: document.getElementById('inputUnit').value.trim() || 'ชิ้น',
+                size: sizeVal,
+                sku: sizeVal,
+                qrCode: qrVal,
+                category: document.getElementById('inputCategory').value.trim() || 'น้ำพริก',
+                price: Number(document.getElementById('inputPrice').value || 0),
+                quantity: Math.max(0, parseInt(document.getElementById('inputQuantity').value, 10) || 0),
+                minStock: Math.max(0, parseInt(document.getElementById('inputMinStock').value, 10) || 5),
                 team: currentTeam
             };
 
@@ -919,7 +943,7 @@
                     cache: 'no-store',
                     body: JSON.stringify(payload)
                 });
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || 'บันทึกไม่สำเร็จ');
 
                 closeModal();
@@ -937,7 +961,7 @@
 
             suppressHeartbeatUntil = Date.now() + 3000;
             try {
-                const res = await fetch(`${API_BASE}/products/${id}?team=${encodeURIComponent(currentTeam)}`, {
+                const res = await fetch(`${API_BASE}/products/${id}`, {
                     method: 'DELETE',
                     cache: 'no-store'
                 });
@@ -950,11 +974,12 @@
         }
 
         // ==========================================
-        // ส่วนสแกน QR Code (jsQR + ป้องกันสแกนเบิ้ล + ล็อกคำขอซ้อน)
+        // สแกน QR Code (ส่ง qrCode ตรงกับ labRoutes.js + กันสแกนเบิ้ล)
         // ==========================================
         function openScanModal() {
             const modal = document.getElementById('scanModal');
             if (!modal) return;
+            hideUnknownQrCard();
             modal.classList.remove('hidden');
             modal.style.display = 'flex';
             updateTeamUI();
@@ -965,6 +990,7 @@
 
         function closeScanModal() {
             stopCameraScanner();
+            hideUnknownQrCard();
             const modal = document.getElementById('scanModal');
             if (!modal) return;
             modal.classList.add('hidden');
@@ -986,8 +1012,7 @@
 
         function stepScanAmount(delta) {
             const input = document.getElementById('scanAmount');
-            const next = Math.max(1, Number(input.value || 1) + delta);
-            input.value = next;
+            input.value = Math.max(1, Number(input.value || 1) + delta);
         }
 
         function setScanAmount(val) {
@@ -1003,6 +1028,73 @@
                 tone === 'busy' ? 'bg-blue-600/95 text-white' :
                 'bg-emerald-600/90 text-white'
             );
+        }
+
+        function showUnknownQrCard(code) {
+            pendingUnknownQrCode = code;
+            const card = document.getElementById('unknownQrCard');
+            const codeEl = document.getElementById('unknownQrCodeText');
+            const select = document.getElementById('linkExistingProductSelect');
+            if (!card || !codeEl || !select) return;
+
+            codeEl.textContent = code;
+            if (products.length) {
+                select.innerHTML = products.map(p =>
+                    `<option value="${p.id}">${escapeHtml(p.name)}${p.size ? ' (' + escapeHtml(p.size) + ')' : ''} — คงเหลือ ${p.quantity} ชิ้น</option>`
+                ).join('');
+                select.disabled = false;
+            } else {
+                select.innerHTML = '<option value="">ยังไม่มีสินค้าในทีมนี้</option>';
+                select.disabled = true;
+            }
+            card.classList.remove('hidden');
+        }
+
+        function hideUnknownQrCard() {
+            pendingUnknownQrCode = '';
+            document.getElementById('unknownQrCard')?.classList.add('hidden');
+        }
+
+        async function linkUnknownQrToProduct() {
+            const select = document.getElementById('linkExistingProductSelect');
+            const prodId = Number(select?.value);
+            const p = products.find(item => item.id === prodId);
+            if (!p || !pendingUnknownQrCode) return;
+
+            const codeToBind = pendingUnknownQrCode;
+            suppressHeartbeatUntil = Date.now() + 3500;
+            try {
+                const res = await fetch(`${API_BASE}/products/${p.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                    body: JSON.stringify({
+                        qrCode: codeToBind,
+                        name: p.name,
+                        category: p.category,
+                        size: p.size || p.sku || '',
+                        quantity: p.quantity,
+                        minStock: p.minStock,
+                        image: p.image || '',
+                        team: p.team || currentTeam
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'ผูก QR ไม่สำเร็จ');
+
+                p.qrCode = codeToBind;
+                hideUnknownQrCard();
+                showToast(`ผูก QR กับ "${p.name}" เรียบร้อย กำลังปรับสต็อก...`, 'success');
+                await executeQrScan(codeToBind, { fromScanner: true });
+            } catch (err) {
+                showToast(err.message || 'ผูก QR ไม่สำเร็จ', 'error');
+            }
+        }
+
+        function createProductFromUnknownQr() {
+            const code = pendingUnknownQrCode;
+            closeScanModal();
+            openModal(null, code);
         }
 
         async function startCameraScanner() {
@@ -1156,12 +1248,16 @@
 
         async function executeQrScan(rawCode, opts = {}) {
             if (isScanRequestInFlight) return;
+            const qrString = String(rawCode || '').trim();
+            if (!qrString) return;
+
             isScanRequestInFlight = true;
             suppressHeartbeatUntil = Date.now() + 3500;
 
             const mode = opts.mode || currentScanMode;
-            const amount = Math.max(1, Number(opts.amount ?? document.getElementById('scanAmount')?.value ?? 1));
-            const note = opts.note || (opts.fromScanner ? 'สแกน QR Code' : 'ปรับสต็อก');
+            const amount = Math.max(1, parseInt(opts.amount ?? document.getElementById('scanAmount')?.value ?? 1, 10) || 1);
+            const source = opts.source || (opts.fromScanner ? 'QR สแกน' : 'ลิงก์ QR');
+            const note = opts.note || '';
 
             try {
                 const res = await fetch(`${API_BASE}/scan`, {
@@ -1169,21 +1265,28 @@
                     headers: { 'Content-Type': 'application/json' },
                     cache: 'no-store',
                     body: JSON.stringify({
-                        code: rawCode,
+                        qrCode: qrString,
                         mode,
                         amount,
-                        team: currentTeam,
+                        source,
                         note
                     })
                 });
-
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
 
                 if (res.status === 404 || data.notFound) {
                     playBeep('error');
-                    const parsed = data.parsedCode || extractCleanQrCode(rawCode);
-                    showToast(`ไม่พบรหัส "${parsed}" ใน${TEAM_LABELS[currentTeam]}`, 'error');
-                    if (isCameraActive) setCameraBadge('ไม่พบรหัสนี้ — ลองใหม่', 'wait');
+                    const shown = data.qrCode || extractCleanQrCode(qrString);
+                    showToast(`ยังไม่พบรหัส "${shown}" ในคลัง — ผูกกับสินค้าด้านล่างได้เลย`, 'warning');
+                    if (isCameraActive) setCameraBadge(`ไม่พบรหัส: ${shown}`, 'wait');
+                    if (opts.fromScanner) showUnknownQrCard(shown);
+                    return;
+                }
+
+                if (data.insufficientStock) {
+                    playBeep('error');
+                    showToast(data.error || 'สต็อกไม่พอเบิก', 'error');
+                    if (isCameraActive) setCameraBadge('สต็อกไม่พอเบิก', 'wait');
                     return;
                 }
 
@@ -1191,8 +1294,17 @@
                     throw new Error(data.error || 'ปรับสต็อกไม่สำเร็จ');
                 }
 
+                hideUnknownQrCard();
                 playBeep(mode);
+
                 const updatedProduct = data.product ? normalizeProduct(data.product) : null;
+
+                if (updatedProduct && updatedProduct.team && updatedProduct.team !== currentTeam) {
+                    currentTeam = updatedProduct.team;
+                    localStorage.setItem('sm_qr_team', currentTeam);
+                    updateTeamUI();
+                }
+
                 if (updatedProduct) {
                     const idx = products.findIndex(p => p.id === updatedProduct.id);
                     if (idx >= 0) products[idx] = updatedProduct;
@@ -1204,17 +1316,16 @@
                     renderProducts();
                 }
 
-                const logObj = data.log ? normalizeLog(data.log) : null;
-                lastScanLogId = logObj?.id || data.logId || null;
+                lastScanLogId = data.logId || null;
 
                 if (opts.fromScanner) {
-                    showLastScanCard(updatedProduct, mode, amount, data.previousQty, data.newQty, lastScanLogId);
+                    showLastScanCard(updatedProduct, mode, amount, data.oldQuantity, data.newQuantity, lastScanLogId);
                     if (isCameraActive) setCameraBadge('บันทึกแล้ว — ยกกล้องออกก่อนสแกนซ้ำ', 'wait');
                 }
 
                 const sign = mode === 'in' ? '+' : '-';
-                const nameText = updatedProduct ? updatedProduct.name : rawCode;
-                showToast(`${nameText} (${sign}${amount}) → คงเหลือ ${updatedProduct ? updatedProduct.quantity : data.newQty}`, 'success');
+                const nameText = updatedProduct ? updatedProduct.name : extractCleanQrCode(qrString);
+                showToast(`${nameText} (${sign}${amount}) → คงเหลือ ${data.newQuantity ?? updatedProduct?.quantity} ชิ้น`, 'success');
 
                 suppressHeartbeatUntil = Date.now() + 3000;
                 await loadData(true);
@@ -1227,7 +1338,7 @@
             }
         }
 
-        function showLastScanCard(product, mode, amount, prevQty, newQty, logId) {
+        function showLastScanCard(product, mode, amount, oldQty, newQty, logId) {
             const card = document.getElementById('lastScanCard');
             const badge = document.getElementById('lastScanBadge');
             const timeEl = document.getElementById('lastScanTime');
@@ -1244,11 +1355,11 @@
             );
             badge.textContent = mode === 'in' ? `รับเข้า +${amount}` : `เบิกออก -${amount}`;
             timeEl.textContent = new Date().toLocaleTimeString('th-TH');
-            nameEl.textContent = product ? product.name : '-';
+            nameEl.textContent = product ? `${product.name}${product.size ? ' (' + product.size + ')' : ''}` : '-';
 
-            const before = prevQty ?? (product ? (mode === 'in' ? product.quantity - amount : product.quantity + amount) : '-');
-            const after = newQty ?? (product ? product.quantity : '-');
-            detailEl.textContent = `คงเหลือ: ${before} → ${after} ${product?.unit || 'ชิ้น'}`;
+            const before = oldQty ?? '-';
+            const after = newQty ?? product?.quantity ?? '-';
+            detailEl.textContent = `คงเหลือ: ${before} → ${after} ชิ้น`;
 
             if (logId) undoBtn.classList.remove('hidden');
             else undoBtn.classList.add('hidden');
@@ -1269,10 +1380,9 @@
                 const res = await fetch(`${API_BASE}/undo/${logId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    cache: 'no-store',
-                    body: JSON.stringify({ team: currentTeam })
+                    cache: 'no-store'
                 });
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || 'ย้อนกลับไม่สำเร็จ');
                 showToast('ย้อนกลับรายการเรียบร้อย', 'success');
                 await loadData(true);
@@ -1287,7 +1397,7 @@
         // สร้างและพิมพ์สติกเกอร์ QR Code
         // ==========================================
         function buildQrPayload(product, format = 'url') {
-            const code = (product.qr_code || product.sku || '').trim();
+            const code = (product.qrCode || '').trim();
             if (format === 'code') return code;
             const base = `${window.location.origin}${window.location.pathname}`;
             return `${base}?qr=${encodeURIComponent(code)}`;
@@ -1341,7 +1451,7 @@
             if (!activeStickerProduct) return;
             const payload = buildQrPayload(activeStickerProduct, stickerFormat);
             document.getElementById('stickerProductName').textContent = activeStickerProduct.name;
-            document.getElementById('stickerProductCode').textContent = `SKU: ${activeStickerProduct.sku} | QR: ${activeStickerProduct.qr_code || activeStickerProduct.sku}`;
+            document.getElementById('stickerProductCode').textContent = `${activeStickerProduct.size ? activeStickerProduct.size + ' | ' : ''}QR: ${activeStickerProduct.qrCode}`;
             document.getElementById('stickerQrBox').innerHTML = createQrSvgMarkup(payload, 184);
             document.getElementById('stickerPayloadHint').textContent = payload;
 
@@ -1387,7 +1497,7 @@
                                         ${createQrSvgMarkup(payload, 128)}
                                     </div>
                                     <div style="font-size: 12px; font-weight: 700; color: #0f172a; line-height: 1.3;">${escapeHtml(p.name)}</div>
-                                    <div style="font-size: 11px; font-family: monospace; color: #475569; margin-top: 2px;">${escapeHtml(p.qr_code || p.sku)}</div>
+                                    <div style="font-size: 11px; font-family: monospace; color: #475569; margin-top: 2px;">${escapeHtml(p.qrCode)}</div>
                                 </div>
                             `;
                         }).join('')}
@@ -1418,11 +1528,11 @@
                 ctx.fillText(activeStickerProduct.name.slice(0, 28), 210, 424);
                 ctx.fillStyle = '#475569';
                 ctx.font = '16px monospace';
-                ctx.fillText(activeStickerProduct.qr_code || activeStickerProduct.sku, 210, 456);
+                ctx.fillText(activeStickerProduct.qrCode, 210, 456);
                 URL.revokeObjectURL(url);
 
                 const a = document.createElement('a');
-                a.download = `QR-${activeStickerProduct.sku || activeStickerProduct.id}.png`;
+                a.download = `QR-${activeStickerProduct.qrCode || activeStickerProduct.id}.png`;
                 a.href = canvas.toDataURL('image/png');
                 a.click();
             };
@@ -1438,19 +1548,25 @@
             if (!qrParam) return;
 
             try {
-                const res = await fetch(`${API_BASE}/lookup?code=${encodeURIComponent(qrParam)}&team=${encodeURIComponent(currentTeam)}&_t=${Date.now()}`, { cache: 'no-store' });
-                if (!res.ok) {
-                    showToast(`ไม่พบรหัส QR "${qrParam}" ใน${TEAM_LABELS[currentTeam]}`, 'warning');
+                const res = await fetch(`${API_BASE}/lookup?qr=${encodeURIComponent(qrParam)}&_t=${Date.now()}`, { cache: 'no-store' });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.found || !data.product) {
+                    showToast(`ไม่พบรหัส QR "${qrParam}" ในคลัง`, 'warning');
                     return;
                 }
-                const data = await res.json();
-                const prod = data.product ? normalizeProduct(data.product) : normalizeProduct(data);
-                if (!prod || !prod.id) return;
+                const prod = normalizeProduct(data.product);
+
+                if (prod.team && prod.team !== currentTeam) {
+                    currentTeam = prod.team;
+                    localStorage.setItem('sm_qr_team', currentTeam);
+                    updateTeamUI();
+                    await loadData(true);
+                }
 
                 activeDeepLinkProduct = prod;
                 document.getElementById('dlProductName').textContent = prod.name;
-                document.getElementById('dlProductSku').textContent = `SKU: ${prod.sku} | QR: ${prod.qr_code || prod.sku}`;
-                document.getElementById('dlProductQty').textContent = `${prod.quantity} ${prod.unit}`;
+                document.getElementById('dlProductSku').textContent = `${prod.size ? prod.size + ' | ' : ''}QR: ${prod.qrCode}`;
+                document.getElementById('dlProductQty').textContent = `${prod.quantity} ชิ้น`;
                 document.getElementById('dlAmount').value = 1;
 
                 const modal = document.getElementById('deepLinkModal');
@@ -1475,9 +1591,8 @@
 
         async function submitDeepLinkAction(mode) {
             if (!activeDeepLinkProduct) return;
-            const amount = Math.max(1, Number(document.getElementById('dlAmount').value || 1));
-            const code = activeDeepLinkProduct.qr_code || activeDeepLinkProduct.sku;
-            await executeQrScan(code, { mode, amount, note: 'สแกนผ่านลิงก์ QR', fromScanner: false });
+            const amount = Math.max(1, parseInt(document.getElementById('dlAmount').value, 10) || 1);
+            await executeQrScan(activeDeepLinkProduct.qrCode, { mode, amount, source: 'ลิงก์ QR', fromScanner: false });
             closeDeepLinkModal();
         }
 
@@ -1492,12 +1607,11 @@
             const rows = getFilteredProducts().map((p, idx) => ({
                 'ลำดับ': idx + 1,
                 'ชื่อสินค้า': p.name,
-                'SKU': p.sku,
-                'รหัส QR': p.qr_code || p.sku,
+                'ขนาด/SKU': p.size,
+                'รหัส QR': p.qrCode,
                 'หมวดหมู่': p.category,
                 'คงเหลือ': p.quantity,
-                'หน่วย': p.unit,
-                'จุดแจ้งเตือน': p.min_stock
+                'จุดแจ้งเตือน': p.minStock
             }));
             const ws = XLSX.utils.json_to_sheet(rows);
             const wb = XLSX.utils.book_new();
@@ -1522,7 +1636,7 @@
                     <thead>
                         <tr style="background:#f1f5f9;">
                             <th style="border:1px solid #cbd5e1;padding:6px;text-align:left;">สินค้า</th>
-                            <th style="border:1px solid #cbd5e1;padding:6px;text-align:left;">SKU / QR</th>
+                            <th style="border:1px solid #cbd5e1;padding:6px;text-align:left;">ขนาด / รหัส QR</th>
                             <th style="border:1px solid #cbd5e1;padding:6px;text-align:left;">หมวดหมู่</th>
                             <th style="border:1px solid #cbd5e1;padding:6px;text-align:right;">คงเหลือ</th>
                         </tr>
@@ -1531,9 +1645,9 @@
                         ${list.map(p => `
                             <tr>
                                 <td style="border:1px solid #cbd5e1;padding:6px;">${escapeHtml(p.name)}</td>
-                                <td style="border:1px solid #cbd5e1;padding:6px;">${escapeHtml(p.sku)}</td>
+                                <td style="border:1px solid #cbd5e1;padding:6px;">${escapeHtml(p.size ? p.size + ' / ' : '')}${escapeHtml(p.qrCode)}</td>
                                 <td style="border:1px solid #cbd5e1;padding:6px;">${escapeHtml(p.category)}</td>
-                                <td style="border:1px solid #cbd5e1;padding:6px;text-align:right;">${p.quantity} ${escapeHtml(p.unit)}</td>
+                                <td style="border:1px solid #cbd5e1;padding:6px;text-align:right;">${p.quantity} ชิ้น</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1566,10 +1680,10 @@
                     <tbody>
                         ${logs.slice(0, 100).map(l => `
                             <tr>
-                                <td style="border:1px solid #cbd5e1;padding:5px;">${escapeHtml(formatThaiDateTime(l.created_at))}</td>
-                                <td style="border:1px solid #cbd5e1;padding:5px;">${escapeHtml(l.product_name)}</td>
+                                <td style="border:1px solid #cbd5e1;padding:5px;">${escapeHtml(l.date)}</td>
+                                <td style="border:1px solid #cbd5e1;padding:5px;">${escapeHtml(l.productName)}</td>
                                 <td style="border:1px solid #cbd5e1;padding:5px;text-align:center;">${escapeHtml(l.type)}</td>
-                                <td style="border:1px solid #cbd5e1;padding:5px;text-align:right;">${l.change_amount > 0 ? '+' + l.change_amount : l.change_amount}</td>
+                                <td style="border:1px solid #cbd5e1;padding:5px;text-align:right;">${l.changeAmount > 0 ? '+' + l.changeAmount : l.changeAmount}</td>
                                 <td style="border:1px solid #cbd5e1;padding:5px;">${escapeHtml(l.note || '-')}</td>
                             </tr>
                         `).join('')}
@@ -1579,7 +1693,6 @@
             html2pdf().from(el).save(`StockMaster-Logs-${currentTeam}.pdf`);
         }
 
-        // เริ่มต้นทำงานเมื่อโหลดหน้าเว็บ
         document.addEventListener('DOMContentLoaded', async () => {
             if (window.lucide) lucide.createIcons();
             updateTeamUI();
