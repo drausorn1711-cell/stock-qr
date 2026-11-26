@@ -302,19 +302,6 @@
                 </label>
             </div>
 
-            <!-- ผลลัพธ์การสแกนล่าสุด + ตัวเลขจำนวนคงเหลือเด่นชัด + Undo -->
-            <div id="lastScanBanner" class="hidden rounded-xl border p-3 flex flex-wrap items-center justify-between gap-2">
-                <div class="min-w-0 flex-1">
-                    <div id="lastScanTitle" class="text-sm font-bold text-slate-900"></div>
-                    <div id="lastScanMeta" class="text-xs text-slate-600 mt-0.5"></div>
-                </div>
-                <div id="lastScanQtyBadge" class="hidden px-3 py-1 rounded-xl bg-white border border-slate-200 text-center shrink-0">
-                    <div class="text-[10px] text-slate-400 leading-none">คงเหลือ</div>
-                    <div id="lastScanQtyNum" class="text-lg font-extrabold text-slate-900 leading-tight tabular-nums">0</div>
-                </div>
-                <div id="lastScanActions"></div>
-            </div>
-
             <!-- กล้องส่อง QR Code & บาร์โค้ดมือถือ (Dual-Engine: jsQR + BarcodeDetector + Html5Qrcode) -->
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2.5">
                 <div class="flex items-center justify-between gap-2">
@@ -350,6 +337,19 @@
                 <!-- Fallback Html5Qrcode container -->
                 <div id="barcodeReader" class="hidden w-full overflow-hidden rounded-xl bg-black"></div>
                 <div id="cameraStatus" class="text-[11px] text-slate-500 text-center">กด "เปิดกล้อง" แล้วนำ QR Code หรือบาร์โค้ดมาจ่อในกรอบ</div>
+            </div>
+
+            <!-- ผลลัพธ์การสแกนล่าสุด + ตัวเลขจำนวนคงเหลือเด่นชัด + Undo -->
+            <div id="lastScanBanner" class="hidden rounded-xl border p-3 flex flex-wrap items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <div id="lastScanTitle" class="text-sm font-bold text-slate-900"></div>
+                    <div id="lastScanMeta" class="text-xs text-slate-600 mt-0.5"></div>
+                </div>
+                <div id="lastScanQtyBadge" class="hidden px-3 py-1 rounded-xl bg-white border border-slate-200 text-center shrink-0">
+                    <div class="text-[10px] text-slate-400 leading-none">คงเหลือ</div>
+                    <div id="lastScanQtyNum" class="text-lg font-extrabold text-slate-900 leading-tight tabular-nums">0</div>
+                </div>
+                <div id="lastScanActions"></div>
             </div>
 
             <!-- ช่องเครื่องยิงบาร์โค้ด USB / Bluetooth -->
@@ -715,12 +715,40 @@
         let editingProductId = null;
         let searchDebounceTimer = null;
         let currentDataVersion = '';
+        let isPersistentServer = true;
+        let localMutationSeq = 0;
         let scanMode = 'in';
         let activeStickerProduct = null;
         let html5Scanner = null;
         let isCameraRunning = false;
         let lastScannedCode = '';
         let lastScannedAt = 0;
+
+        function getEphemeralKey(kind, team = currentTeam) {
+            return `stockmaster_lab_ephemeral_${kind}_${team}`;
+        }
+        function saveEphemeralCache(team = currentTeam) {
+            if (isPersistentServer) return;
+            try {
+                localStorage.setItem(getEphemeralKey('products', team), JSON.stringify(products));
+                localStorage.setItem(getEphemeralKey('logs', team), JSON.stringify(logs));
+            } catch (e) {}
+        }
+        function loadEphemeralCache(kind, team = currentTeam) {
+            try {
+                const raw = localStorage.getItem(getEphemeralKey(kind, team));
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        function findLocalProductByCode(rawCode) {
+            const clean = String(rawCode || '').trim().toLowerCase();
+            if (!clean) return null;
+            return products.find(p => String(p?.qrCode || '').trim().toLowerCase() === clean) || null;
+        }
 
         let currentTeam = new URLSearchParams(window.location.search).get('team') || localStorage.getItem('stockmaster_lab_team') || 'team1';
         if (currentTeam !== 'team1' && currentTeam !== 'team2') currentTeam = 'team1';
@@ -792,30 +820,74 @@
             showToast(`สลับไป ${getTeamDisplayName()} เรียบร้อยแล้ว`);
         }
 
-        async function fetchProducts() {
+        async function fetchProducts(options = {}) {
+            const { allowEphemeralOverwrite = false } = options;
+            const teamBefore = currentTeam;
+            const seqBefore = localMutationSeq;
             try {
-                const res = await fetch(`${API_BASE}/products?team=${currentTeam}&t=${Date.now()}`, { cache: 'no-store' });
+                const res = await fetch(`${API_BASE}/products?team=${teamBefore}&t=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) return;
-                products = sortProductsThai(await res.json());
+                const persistentHeader = res.headers.get('X-Lab-Persistent');
+                if (persistentHeader === '0') isPersistentServer = false;
+                else if (persistentHeader === '1') isPersistentServer = true;
+
+                const serverRows = sortProductsThai(await res.json());
+                if (teamBefore !== currentTeam || seqBefore !== localMutationSeq) return;
+
+                if (!isPersistentServer && !allowEphemeralOverwrite) {
+                    const cached = loadEphemeralCache('products', teamBefore);
+                    if (cached && cached.length > 0) {
+                        products = sortProductsThai(cached);
+                        renderDashboard();
+                        return;
+                    }
+                }
+
+                products = serverRows;
+                saveEphemeralCache(teamBefore);
                 renderDashboard();
             } catch (e) {}
         }
 
-        async function fetchLogs() {
+        async function fetchLogs(options = {}) {
+            const { allowEphemeralOverwrite = false } = options;
+            const teamBefore = currentTeam;
+            const seqBefore = localMutationSeq;
             try {
-                const res = await fetch(`${API_BASE}/logs?team=${currentTeam}&t=${Date.now()}`, { cache: 'no-store' });
+                const res = await fetch(`${API_BASE}/logs?team=${teamBefore}&t=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) return;
-                logs = await res.json();
+                const serverLogs = await res.json();
+                if (teamBefore !== currentTeam || seqBefore !== localMutationSeq) return;
+
+                if (!isPersistentServer && !allowEphemeralOverwrite) {
+                    const cached = loadEphemeralCache('logs', teamBefore);
+                    if (cached && cached.length > 0) {
+                        logs = cached;
+                        renderLogsTable();
+                        return;
+                    }
+                }
+
+                logs = serverLogs;
+                saveEphemeralCache(teamBefore);
                 renderLogsTable();
             } catch (e) {}
         }
 
         async function checkDataHeartbeat() {
             if (isScanInFlight) return;
+            const teamBefore = currentTeam;
+            const seqBefore = localMutationSeq;
             try {
-                const res = await fetch(`${API_BASE}/version?team=${currentTeam}&t=${Date.now()}`, { cache: 'no-store' });
+                const res = await fetch(`${API_BASE}/version?team=${teamBefore}&t=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) return;
                 const data = await res.json();
+                if (typeof data.persistent === 'boolean') isPersistentServer = data.persistent;
+                if (isScanInFlight || teamBefore !== currentTeam || seqBefore !== localMutationSeq) return;
+
+                // กรณี Serverless แบบไม่มี Turso (/tmp ชั่วคราวแยกต่อ Lambda): ห้ามดึงค่าตั้งต้นจาก Lambda อื่นมาทับตัวเลขบนหน้าจอ
+                if (!isPersistentServer) return;
+
                 if (!currentDataVersion) currentDataVersion = data.v;
                 else if (data.v && data.v !== currentDataVersion) {
                     currentDataVersion = data.v;
@@ -927,20 +999,66 @@
         }
 
         async function adjustStock(id, changeAmount) {
+            const mutationSeq = ++localMutationSeq;
+            const target = products.find(x => Number(x.id) === Number(id));
+            const oldQty = target ? Number(target.quantity) || 0 : 0;
             const res = await fetch(`${API_BASE}/products/${id}/stock`, {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ changeAmount })
             });
             const data = await res.json();
             if (!res.ok) return showToast(data.error || 'ปรับสต็อกไม่สำเร็จ', true);
-            await Promise.all([fetchProducts(), fetchLogs()]);
+            if (typeof data.persistent === 'boolean') isPersistentServer = data.persistent;
+            if (data.v) currentDataVersion = data.v;
+
+            const newQty = Number(data.quantity ?? (oldQty + changeAmount));
+            if (target) {
+                target.quantity = newQty;
+                renderDashboard();
+            }
+            if (!isPersistentServer) {
+                if (target) {
+                    logs.unshift({
+                        id: data.logId || Date.now(),
+                        date: new Date().toLocaleString('th-TH'),
+                        productId: target.id,
+                        qrCode: target.qrCode,
+                        productName: target.name,
+                        type: changeAmount > 0 ? 'รับเข้า' : 'เบิกออก',
+                        changeAmount,
+                        amount: Math.abs(changeAmount),
+                        beforeQty: oldQty,
+                        afterQty: newQty,
+                        source: 'ปุ่มด่วน',
+                        note: `ปรับสต็อก ${changeAmount > 0 ? '+' : ''}${changeAmount} (${oldQty} → ${newQty})`,
+                        team: currentTeam,
+                        undone: 0
+                    });
+                    renderLogsTable();
+                }
+                saveEphemeralCache(currentTeam);
+            } else if (mutationSeq === localMutationSeq) {
+                await Promise.all([fetchProducts(), fetchLogs()]);
+            }
             flashProductRow(id, changeAmount > 0 ? 'in' : 'out');
         }
 
         async function deleteProduct(id) {
             if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบสินค้ารายการนี้?')) return;
+            const mutationSeq = ++localMutationSeq;
             const res = await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
-            if (res.ok) { showToast('ลบสินค้าเรียบร้อยแล้ว'); await fetchProducts(); }
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                if (typeof data.persistent === 'boolean') isPersistentServer = data.persistent;
+                if (data.v) currentDataVersion = data.v;
+                products = products.filter(p => Number(p.id) !== Number(id));
+                saveEphemeralCache(currentTeam);
+                renderDashboard();
+                showToast('ลบสินค้าเรียบร้อยแล้ว');
+                if (isPersistentServer && mutationSeq === localMutationSeq) {
+                    await fetchProducts();
+                }
+            }
         }
 
         // ============================================================
@@ -1026,6 +1144,7 @@
         }
 
         let isScanInFlight = false;
+        let scanQueue = [];
         let nativeMediaStream = null;
         let nativeScanRaf = null;
         let nativeBarcodeDetector = null;
@@ -1052,24 +1171,31 @@
 
         async function executeBarcodeScan(rawCode, options = {}) {
             const code = String(rawCode || '').replace(/[\r\n\t\x00-\x1F]/g, '').trim();
-            if (!code || isScanInFlight) return;
+            if (!code) return;
+            if (isScanInFlight) {
+                if (options.queueable) scanQueue.push({ code, options });
+                return;
+            }
             isScanInFlight = true;
+            const mutationSeq = ++localMutationSeq;
 
             const mode = options.mode || scanMode;
             const rawAmt = options.amount !== undefined ? options.amount : (document.getElementById('scanAmountInput')?.value || document.getElementById('quickScanQty')?.value || '1');
             const parsedAmt = parseInt(rawAmt, 10);
             const amount = Number.isFinite(parsedAmt) && parsedAmt > 0 ? parsedAmt : 1;
             const source = options.source || 'สแกนบาร์โค้ด / QR';
+            const fallbackProduct = !isPersistentServer ? findLocalProductByCode(code) : null;
 
             try {
                 const res = await fetch(`${API_BASE}/scan`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     cache: 'no-store',
-                    body: JSON.stringify({ qrCode: code, mode, amount, source })
+                    body: JSON.stringify({ qrCode: code, mode, amount, source, fallbackProduct })
                 });
                 let data = {};
                 try { data = await res.json(); } catch (e) {}
+                if (typeof data.persistent === 'boolean') isPersistentServer = data.persistent;
 
                 if (res.status === 404 && data.notFound) {
                     playBeep('error');
@@ -1091,45 +1217,53 @@
                 const prod = data.product;
                 const newQty = Number(data.newQuantity ?? prod.quantity ?? 0);
                 const oldQty = Number(data.oldQuantity ?? 0);
+                if (data.v) currentDataVersion = data.v;
 
                 // หากสินค้าที่สแกนอยู่คนละทีม ให้สลับไปทีมของสินค้านั้นอัตโนมัติเพื่อให้เห็นตัวเลขขึ้นทันที
                 if (prod.team && prod.team !== currentTeam) {
                     currentTeam = prod.team;
                     localStorage.setItem('stockmaster_lab_team', currentTeam);
-                    currentDataVersion = '';
+                    currentDataVersion = data.v || '';
                     updateTeamButtonsUI();
+                    if (!isPersistentServer) {
+                        const cachedTeamProds = loadEphemeralCache('products', currentTeam);
+                        const cachedTeamLogs = loadEphemeralCache('logs', currentTeam);
+                        if (cachedTeamProds) products = sortProductsThai(cachedTeamProds);
+                        if (cachedTeamLogs) logs = cachedTeamLogs;
+                    }
                 }
 
                 // อัปเดตตัวเลขในหน้าจอทันที (ไม่ต้องรอ fetch รอบใหม่เสร็จ)
-                const idx = products.findIndex(x => Number(x.id) === Number(prod.id));
+                const idx = products.findIndex(x => Number(x.id) === Number(prod.id) || String(x.qrCode || '').trim().toLowerCase() === String(prod.qrCode || '').trim().toLowerCase());
                 if (idx !== -1) {
                     products[idx] = { ...products[idx], ...prod, quantity: newQty };
                 } else {
                     products.push({ ...prod, quantity: newQty });
                     products = sortProductsThai(products);
                 }
+                if (data.log) {
+                    logs = [data.log, ...logs.filter(l => Number(l.id) !== Number(data.log.id))].slice(0, 80);
+                    renderLogsTable();
+                }
+                saveEphemeralCache(currentTeam);
                 renderDashboard();
                 flashProductRow(prod.id, mode);
 
                 const signText = mode === 'in' ? `+${data.amount}` : `−${data.amount}`;
                 const msg = `${mode === 'in' ? 'รับเข้า' : 'เบิกออก'} ${signText} ชิ้น — ${prod.name} (${oldQty} → ${newQty})`;
+                const camStatus = document.getElementById('cameraStatus');
+                if (camStatus) camStatus.textContent = `✓ ${prod.name} (${signText}) • คงเหลือ ${newQty} ชิ้น`;
                 showLastScanBanner(mode, msg, `รหัส ${prod.qrCode} • ${getTeamDisplayName(prod.team)}${data.lowStock ? ' • สต็อกใกล้หมด!' : ''}`, data.logId, newQty);
                 showCamLiveOverlay(`✓ ${prod.name} (${signText}) • คงเหลือ ${newQty}`, false);
                 showToast(msg);
 
-                // ซิงก์กับเซิร์ฟเวอร์อีกรอบ (ป้องกันกรณี serverless cold-start คืนค่าเก่าทับ)
-                const prevSnapshot = new Map(products.map(p => [Number(p.id), p]));
-                await Promise.all([fetchProducts(), fetchLogs()]);
-                const updatedAfterFetch = products.find(x => Number(x.id) === Number(prod.id));
-                if (updatedAfterFetch && Number(updatedAfterFetch.quantity) === oldQty && newQty !== oldQty) {
-                    updatedAfterFetch.quantity = newQty;
-                    renderDashboard();
-                } else if (!updatedAfterFetch && prevSnapshot.has(Number(prod.id))) {
-                    products.push({ ...prod, quantity: newQty });
-                    products = sortProductsThai(products);
-                    renderDashboard();
+                // ซิงก์กับเซิร์ฟเวอร์เฉพาะโหมดฐานข้อมูลถาวร (Local/Turso) และเฉพาะกรณีที่ยังไม่มีการสแกนใหม่แทรก
+                if (isPersistentServer) {
+                    Promise.all([fetchProducts(), fetchLogs()]).then(() => {
+                        if (mutationSeq !== localMutationSeq) return;
+                        flashProductRow(prod.id, mode);
+                    }).catch(() => {});
                 }
-                flashProductRow(prod.id, mode);
             } catch (err) {
                 playBeep('error');
                 showLastScanBanner('error', 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่', `รหัสที่สแกน: ${code}`);
@@ -1137,6 +1271,10 @@
                 showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', true);
             } finally {
                 isScanInFlight = false;
+                if (scanQueue.length > 0) {
+                    const next = scanQueue.shift();
+                    setTimeout(() => executeBarcodeScan(next.code, next.options), 20);
+                }
             }
         }
 
@@ -1145,7 +1283,7 @@
             const inp = document.getElementById('barcodeManualInput');
             const code = inp.value.trim(); if (!code) return;
             inp.value = '';
-            executeBarcodeScan(code, { source: 'เครื่องยิงบาร์โค้ด' });
+            executeBarcodeScan(code, { source: 'เครื่องยิงบาร์โค้ด', queueable: true });
             inp.focus();
         }
 
@@ -1154,25 +1292,38 @@
             const inp = document.getElementById('quickBarcodeInput');
             const code = inp.value.trim(); if (!code) return;
             inp.value = '';
-            executeBarcodeScan(code, { source: 'แถบสแกนด่วน (USB/พิมพ์)' });
+            executeBarcodeScan(code, { source: 'แถบสแกนด่วน (USB/พิมพ์)', queueable: true });
             inp.focus();
         }
 
-        // รองรับเครื่องยิงบาร์โค้ด USB / Bluetooth อัตโนมัติแม้ไม่ได้คลิกที่ช่องพิมพ์
+        // รองรับเครื่องยิงบาร์โค้ด USB / Bluetooth อัตโนมัติแม้ไม่ได้คลิกที่ช่องพิมพ์ (และรองรับคีย์บอร์ดภาษาไทย)
         let _hidBuf = '', _hidLast = 0;
+        function mapPhysicalKeyToAscii(e) {
+            const k = e.key || '';
+            if (k.length === 1 && !/[\u0E00-\u0E7F]/.test(k)) return k;
+            const c = e.code || '';
+            if (/^Digit(\d)$/.test(c)) return c.slice(5);
+            if (/^Numpad(\d)$/.test(c)) return c.slice(6);
+            if (/^Key([A-Z])$/.test(c)) return e.shiftKey ? c.slice(3) : c.slice(3).toLowerCase();
+            if (c === 'Minus' || c === 'NumpadSubtract') return '-';
+            if (c === 'Period' || c === 'NumpadDecimal') return '.';
+            if (c === 'Slash' || c === 'NumpadDivide') return '/';
+            return k.length === 1 ? k : '';
+        }
         document.addEventListener('keydown', (e) => {
             const tag = (document.activeElement && document.activeElement.tagName) || '';
             if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || e.ctrlKey || e.metaKey || e.altKey) return;
             const now = Date.now();
-            if (now - _hidLast > 120) _hidBuf = '';
+            if (now - _hidLast > 250) _hidBuf = '';
             _hidLast = now;
-            if (e.key === 'Enter' && _hidBuf.length >= 4) {
+            if ((e.key === 'Enter' || e.key === 'Tab') && _hidBuf.length >= 4) {
                 e.preventDefault();
                 const code = _hidBuf;
                 _hidBuf = '';
-                executeBarcodeScan(code, { source: 'เครื่องยิงบาร์โค้ด USB' });
-            } else if (e.key.length === 1) {
-                _hidBuf += e.key;
+                executeBarcodeScan(code, { source: 'เครื่องยิงบาร์โค้ด USB', queueable: true });
+            } else {
+                const ch = mapPhysicalKeyToAscii(e);
+                if (ch) _hidBuf += ch;
             }
         });
 
@@ -1207,9 +1358,12 @@
         }
 
         async function undoLog(logId) {
+            const mutationSeq = ++localMutationSeq;
             const res = await fetch(`${API_BASE}/undo/${logId}`, { method: 'POST', cache: 'no-store' });
             const data = await res.json();
             if (!res.ok) return showToast(data.error || 'ยกเลิกไม่สำเร็จ', true);
+            if (typeof data.persistent === 'boolean') isPersistentServer = data.persistent;
+            if (data.v) currentDataVersion = data.v;
             if (data.product) {
                 const idx = products.findIndex(x => Number(x.id) === Number(data.product.id));
                 if (idx !== -1) {
@@ -1217,10 +1371,16 @@
                     renderDashboard();
                 }
             }
+            const logItem = logs.find(l => Number(l.id) === Number(logId));
+            if (logItem) logItem.undone = 1;
+            renderLogsTable();
+            saveEphemeralCache(currentTeam);
             document.getElementById('lastScanBanner')?.classList.add('hidden');
             document.getElementById('quickScanFeedback')?.classList.add('hidden');
             showToast(`ย้อนสต็อก "${data.product.name}" กลับเป็น ${data.newQuantity} ชิ้นแล้ว`);
-            await Promise.all([fetchProducts(), fetchLogs()]);
+            if (isPersistentServer && mutationSeq === localMutationSeq) {
+                await Promise.all([fetchProducts(), fetchLogs()]);
+            }
         }
 
         function flashProductRow(id, mode) {
@@ -1469,6 +1629,7 @@
 
         async function handleFormSubmit(e) {
             e.preventDefault();
+            const mutationSeq = ++localMutationSeq;
             const rawBc = document.getElementById('formBarcode').value.trim();
             const autoBc = rawBc || `885${Math.floor(1000000000 + Math.random() * 8999999999)}`;
             const body = {
@@ -1489,9 +1650,26 @@
             });
             const data = await res.json();
             if (!res.ok) return showToast(data.error || 'บันทึกไม่สำเร็จ', true);
+            if (typeof data.persistent === 'boolean') isPersistentServer = data.persistent;
+            if (data.v) currentDataVersion = data.v;
+
+            if (isEdit) {
+                const idx = products.findIndex(x => Number(x.id) === Number(editingProductId));
+                if (idx !== -1) {
+                    products[idx] = { ...products[idx], ...body, id: editingProductId, sku: body.size };
+                    products = sortProductsThai(products);
+                }
+            } else if (data.product) {
+                products.push(data.product);
+                products = sortProductsThai(products);
+            }
+            saveEphemeralCache(currentTeam);
+            renderDashboard();
             closeModal();
             showToast(isEdit ? 'แก้ไขข้อมูลเรียบร้อยแล้ว' : 'เพิ่มสินค้าใหม่เรียบร้อยแล้ว');
-            await Promise.all([fetchProducts(), fetchLogs()]);
+            if (isPersistentServer && mutationSeq === localMutationSeq) {
+                await Promise.all([fetchProducts(), fetchLogs()]);
+            }
         }
 
         function compressImage(src) {
@@ -1716,7 +1894,36 @@
         window.onload = async function() {
             updateTeamButtonsUI();
             if (window.lucide) lucide.createIcons();
+            try {
+                const vRes = await fetch(`${API_BASE}/version?team=${currentTeam}&t=${Date.now()}`, { cache: 'no-store' });
+                if (vRes.ok) {
+                    const vData = await vRes.json();
+                    if (typeof vData.persistent === 'boolean') isPersistentServer = vData.persistent;
+                    if (vData.v) currentDataVersion = vData.v;
+                }
+            } catch (e) {}
             await Promise.all([fetchProducts(), fetchLogs()]);
+
+            // รองรับกรณีเปิดลิงก์จาก QR Code โดยตรง เช่น ?qr=8851001001036&mode=in&amount=1
+            const urlParams = new URLSearchParams(window.location.search);
+            const qrParam = urlParams.get('qr') || urlParams.get('code');
+            if (qrParam) {
+                const modeParam = urlParams.get('mode');
+                const amtParam = parseInt(urlParams.get('amount') || urlParams.get('qty') || '', 10);
+                if (modeParam === 'in' || modeParam === 'out') setScanMode(modeParam);
+                if (Number.isFinite(amtParam) && amtParam > 0) setScanQty(amtParam);
+                try {
+                    const cleanUrl = new URL(window.location.href);
+                    ['qr', 'code', 'mode', 'amount', 'qty'].forEach(k => cleanUrl.searchParams.delete(k));
+                    window.history.replaceState({}, '', cleanUrl.toString());
+                } catch (e) {}
+                await executeBarcodeScan(qrParam, {
+                    mode: (modeParam === 'in' || modeParam === 'out') ? modeParam : scanMode,
+                    amount: Number.isFinite(amtParam) && amtParam > 0 ? amtParam : undefined,
+                    source: 'QR ลิงก์'
+                });
+            }
+
             setInterval(checkDataHeartbeat, 1500);
         };
     </script>

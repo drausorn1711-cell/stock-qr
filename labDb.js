@@ -5,7 +5,9 @@ const os = require('os');
 // ฐานข้อมูลสำหรับโหมดทดลอง QR Stock (แยกจากฐานข้อมูลจริง 100%)
 // - หากรันในเครื่อง (Local): แยกไฟล์เป็น inventory-lab.db ไม่แตะ inventory.db เดิม
 // - หากรันบน Cloud (Turso): ใช้เฉพาะตาราง lab_products และ lab_logs ไม่แตะตาราง products/logs เดิม
-const isServerless = process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const isServerless = Boolean(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const hasCloudLabDb = Boolean(process.env.LAB_TURSO_DATABASE_URL || process.env.TURSO_DATABASE_URL);
+const isPersistentLabDb = !isServerless || hasCloudLabDb;
 const defaultLabDbPath = isServerless
     ? path.join(os.tmpdir(), 'inventory-lab.db')
     : path.join(__dirname, 'inventory-lab.db');
@@ -144,4 +146,4 @@ async function seedDemoProducts() {
     await labDb.batch(stmts, 'write');
 }
 
-module.exports = { labDb, initLabDb, seedDemoProducts, DEMO_PRODUCTS };
+module.exports = { labDb, initLabDb, seedDemoProducts, DEMO_PRODUCTS, isPersistentLabDb };

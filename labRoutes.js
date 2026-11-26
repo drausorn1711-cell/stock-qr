@@ -1,7 +1,68 @@
 const express = require('express');
-const { labDb, seedDemoProducts } = require('./labDb');
+const { labDb, initLabDb, seedDemoProducts, isPersistentLabDb } = require('./labDb');
 
 const labRouter = express.Router();
+
+let labInitPromise = null;
+async function ensureLabDb() {
+    if (!labInitPromise) {
+        labInitPromise = initLabDb().catch((err) => {
+            labInitPromise = null;
+            throw err;
+        });
+    }
+    return labInitPromise;
+}
+
+labRouter.use(async (req, res, next) => {
+    try {
+        await ensureLabDb();
+        next();
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+async function getTeamVersion(team = 'team1') {
+    const t = team === 'team2' ? 'team2' : 'team1';
+    const result = await labDb.execute({
+        sql: `
+            SELECT
+                (SELECT COUNT(*) FROM lab_products WHERE COALESCE(team, 'team1') = ?) as count,
+                (SELECT COALESCE(MAX(id), 0) FROM lab_products WHERE COALESCE(team, 'team1') = ?) as max_id,
+                (SELECT COALESCE(SUM(quantity), 0) FROM lab_products WHERE COALESCE(team, 'team1') = ?) as total_qty,
+                (SELECT COALESCE(MAX(id), 0) FROM lab_logs WHERE COALESCE(team, 'team1') = ?) as log_id
+        `,
+        args: [t, t, t, t]
+    });
+    const row = result.rows[0] || {};
+    return `${row.count || 0}_${row.max_id || 0}_${row.total_qty || 0}_${row.log_id || 0}`;
+}
+
+async function findLabProductByCode(code) {
+    const clean = String(code || '').trim();
+    if (!clean) return null;
+    const pResult = await labDb.execute({
+        sql: 'SELECT * FROM lab_products WHERE LOWER(TRIM(qrCode)) = LOWER(TRIM(?)) LIMIT 1',
+        args: [clean]
+    });
+    if (pResult.rows[0]) return pResult.rows[0];
+
+    // รองรับบาร์โค้ด EAN-13 / UPC-A ที่เครื่องสแกนบางรุ่นตัดหรือเติมเลข 0 นำหน้า
+    if (/^\d{12,13}$/.test(clean)) {
+        const alt = clean.length === 13 && clean.startsWith('0')
+            ? clean.slice(1)
+            : (clean.length === 12 ? `0${clean}` : '');
+        if (alt) {
+            const altRes = await labDb.execute({
+                sql: 'SELECT * FROM lab_products WHERE TRIM(qrCode) = ? LIMIT 1',
+                args: [alt]
+            });
+            if (altRes.rows[0]) return altRes.rows[0];
+        }
+    }
+    return null;
+}
 
 /**
  * แปลงข้อความที่สแกนได้จาก QR Code / Barcode ให้เป็นรหัสมาตรฐาน
@@ -82,18 +143,8 @@ function sortProductsThai(rows) {
 labRouter.get('/version', async (req, res) => {
     const team = req.query.team || 'team1';
     try {
-        const result = await labDb.execute({
-            sql: `
-                SELECT
-                    (SELECT COUNT(*) FROM lab_products WHERE COALESCE(team, 'team1') = ?) as count,
-                    (SELECT COALESCE(MAX(id), 0) FROM lab_products WHERE COALESCE(team, 'team1') = ?) as max_id,
-                    (SELECT COALESCE(SUM(quantity), 0) FROM lab_products WHERE COALESCE(team, 'team1') = ?) as total_qty,
-                    (SELECT COALESCE(MAX(id), 0) FROM lab_logs WHERE COALESCE(team, 'team1') = ?) as log_id
-            `,
-            args: [team, team, team, team]
-        });
-        const row = result.rows[0];
-        res.json({ v: `${row.count}_${row.max_id}_${row.total_qty}_${row.log_id}`, sandbox: true });
+        const v = await getTeamVersion(team);
+        res.json({ v, sandbox: true, persistent: isPersistentLabDb });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -110,6 +161,7 @@ labRouter.get('/products', async (req, res) => {
                 sql: "SELECT * FROM lab_products WHERE COALESCE(team, 'team1') = ?",
                 args: [team]
             });
+        res.set('X-Lab-Persistent', isPersistentLabDb ? '1' : '0');
         res.json(sortProductsThai(result.rows));
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -121,15 +173,11 @@ labRouter.get('/lookup', async (req, res) => {
     const { code } = parseQrPayload(req.query.qr || req.query.code || '');
     if (!code) return res.status(400).json({ error: 'กรุณาระบุรหัส QR Code' });
     try {
-        const result = await labDb.execute({
-            sql: 'SELECT * FROM lab_products WHERE LOWER(TRIM(qrCode)) = LOWER(TRIM(?)) LIMIT 1',
-            args: [code]
-        });
-        const product = result.rows[0];
+        const product = await findLabProductByCode(code);
         if (!product) {
             return res.status(404).json({ found: false, qrCode: code, error: 'ไม่พบสินค้าที่มีรหัส QR นี้ในคลังทดลอง' });
         }
-        res.json({ found: true, product });
+        res.json({ found: true, product, persistent: isPersistentLabDb });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -137,7 +185,7 @@ labRouter.get('/lookup', async (req, res) => {
 
 // 3. สแกน QR Code เพื่อรับเข้า / เบิกออก ทันที!
 labRouter.post('/scan', async (req, res) => {
-    const { qrCode: rawQr, mode: reqMode, amount: reqAmount, source, note } = req.body || {};
+    const { qrCode: rawQr, mode: reqMode, amount: reqAmount, source, note, fallbackProduct } = req.body || {};
     const parsed = parseQrPayload(rawQr);
     const code = parsed.code;
 
@@ -151,12 +199,35 @@ labRouter.post('/scan', async (req, res) => {
     const scanSource = source || 'QR สแกน';
 
     try {
-        // ค้นหาจาก qrCode เป็นหลัก (รองรับทั้งตัวพิมพ์เล็ก/ใหญ่)
-        const pResult = await labDb.execute({
-            sql: 'SELECT * FROM lab_products WHERE LOWER(TRIM(qrCode)) = LOWER(TRIM(?)) LIMIT 1',
-            args: [code]
-        });
-        const product = pResult.rows[0];
+        // ค้นหาจาก qrCode เป็นหลัก (รองรับทั้งตัวพิมพ์เล็ก/ใหญ่ และ 12/13 หลัก)
+        let product = await findLabProductByCode(code);
+
+        // กรณี Serverless แบบไม่มี Turso (ฐานข้อมูล /tmp ชั่วคราวแยกต่อ Lambda): กู้คืนสินค้าจาก client state ได้ถ้า Lambda ใหม่ยังไม่เคยเห็น
+        if (!product && !isPersistentLabDb && fallbackProduct && fallbackProduct.name) {
+            const fbTeam = fallbackProduct.team === 'team2' ? 'team2' : 'team1';
+            const fbQr = String(fallbackProduct.qrCode || code).trim();
+            const fbQty = Math.max(0, parseInt(fallbackProduct.quantity, 10) || 0);
+            const fbMin = Math.max(0, parseInt(fallbackProduct.minStock, 10) || 5);
+            const fbNow = new Date().toLocaleString('th-TH');
+            await labDb.execute({
+                sql: `INSERT OR IGNORE INTO lab_products (qrCode, sku, name, category, size, price, quantity, minStock, image, team, updatedAt)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [
+                    fbQr,
+                    fallbackProduct.sku || fallbackProduct.size || '',
+                    String(fallbackProduct.name).trim(),
+                    fallbackProduct.category || 'น้ำพริก',
+                    fallbackProduct.size || fallbackProduct.sku || '',
+                    parseFloat(fallbackProduct.price) || 0,
+                    fbQty,
+                    fbMin,
+                    fallbackProduct.image || '',
+                    fbTeam,
+                    fbNow
+                ]
+            });
+            product = await findLabProductByCode(fbQr);
+        }
 
         if (!product) {
             return res.status(404).json({
@@ -165,6 +236,7 @@ labRouter.post('/scan', async (req, res) => {
                 qrCode: code,
                 mode,
                 amount,
+                persistent: isPersistentLabDb,
                 error: `ไม่พบสินค้ารหัส "${code}" ในคลังทดลอง — สามารถเพิ่มเข้าคลังได้ทันที`
             });
         }
@@ -176,6 +248,7 @@ labRouter.post('/scan', async (req, res) => {
                 success: false,
                 insufficientStock: true,
                 product,
+                persistent: isPersistentLabDb,
                 error: `สต็อก "${product.name}" ไม่พอเบิก (คงเหลือ ${oldQty} ชิ้น, ต้องการเบิก ${amount} ชิ้น)`
             });
         }
@@ -199,8 +272,9 @@ labRouter.post('/scan', async (req, res) => {
             }
         ], 'write');
 
-        const logId = Number(batchRes[1].lastInsertRowid);
+        const logId = Number(batchRes[1].lastInsertRowid) || null;
         const updatedProduct = { ...product, quantity: newQty, updatedAt: now };
+        const v = await getTeamVersion(team);
 
         res.json({
             success: true,
@@ -210,6 +284,24 @@ labRouter.post('/scan', async (req, res) => {
             newQuantity: newQty,
             lowStock: newQty <= (Number(product.minStock) || 0),
             logId,
+            log: {
+                id: logId,
+                date: now,
+                productId: product.id,
+                qrCode: product.qrCode,
+                productName: product.name,
+                type: typeStr,
+                changeAmount: change,
+                amount,
+                beforeQty: oldQty,
+                afterQty: newQty,
+                source: scanSource,
+                note: logNote,
+                team,
+                undone: 0
+            },
+            v,
+            persistent: isPersistentLabDb,
             product: updatedProduct
         });
     } catch (err) {
@@ -273,11 +365,14 @@ labRouter.post('/undo/:logId', async (req, res) => {
             }
         ], 'write');
 
+        const v = await getTeamVersion(product.team || 'team1');
         res.json({
             success: true,
             product: { ...product, quantity: newQty, updatedAt: now },
             oldQuantity: oldQty,
-            newQuantity: newQty
+            newQuantity: newQty,
+            v,
+            persistent: isPersistentLabDb
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -344,9 +439,12 @@ labRouter.post('/products', async (req, res) => {
         ], 'write');
 
         const newId = Number(results[0].lastInsertRowid);
+        const v = await getTeamVersion(targetTeam);
         res.json({
             success: true,
             id: newId,
+            v,
+            persistent: isPersistentLabDb,
             product: {
                 id: newId,
                 qrCode: finalQr,
@@ -431,7 +529,8 @@ labRouter.put('/products/:id', async (req, res) => {
             }
         ], 'write');
 
-        res.json({ success: true, updated: 1 });
+        const v = await getTeamVersion(targetTeam);
+        res.json({ success: true, updated: 1, v, persistent: isPersistentLabDb });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -481,7 +580,8 @@ labRouter.patch('/products/:id/stock', async (req, res) => {
             }
         ], 'write');
 
-        res.json({ success: true, quantity: newQty, logId: Number(batchRes[1].lastInsertRowid) });
+        const v = await getTeamVersion(product.team || 'team1');
+        res.json({ success: true, quantity: newQty, logId: Number(batchRes[1].lastInsertRowid), v, persistent: isPersistentLabDb });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -491,8 +591,11 @@ labRouter.patch('/products/:id/stock', async (req, res) => {
 labRouter.delete('/products/:id', async (req, res) => {
     const id = Number(req.params.id);
     try {
+        const pRes = await labDb.execute({ sql: 'SELECT team FROM lab_products WHERE id = ? LIMIT 1', args: [id] });
+        const targetTeam = pRes.rows[0]?.team || 'team1';
         await labDb.execute({ sql: 'DELETE FROM lab_products WHERE id = ?', args: [id] });
-        res.json({ success: true });
+        const v = await getTeamVersion(targetTeam);
+        res.json({ success: true, v, persistent: isPersistentLabDb });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
