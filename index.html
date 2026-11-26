@@ -11,7 +11,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Mobile Barcode + QR Camera Scanner (รองรับ iPhone & Android) -->
+    <!-- jsQR: ตัวอ่าน QR Code ความเร็วสูง รองรับมือถือแนวตั้งทั้ง iPhone (Safari) และ Android (Chrome) -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" defer></script>
+    <!-- Mobile Barcode + QR Camera Scanner Fallback -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
     <!-- Export Excel & PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
@@ -19,8 +21,10 @@
     <style>
         @keyframes rowFlashIn { 0% { background-color: #d1fae5; } 100% { background-color: transparent; } }
         @keyframes rowFlashOut { 0% { background-color: #ffe4e6; } 100% { background-color: transparent; } }
+        @keyframes scanLaser { 0%, 100% { top: 8%; } 50% { top: 88%; } }
         .flash-in { animation: rowFlashIn 1.4s ease-out; }
         .flash-out { animation: rowFlashOut 1.4s ease-out; }
+        .scan-laser-line { animation: scanLaser 2s ease-in-out infinite; }
         #barcodeReader video { border-radius: 0.75rem; width: 100% !important; object-fit: cover; }
         @media print {
             body * { visibility: hidden !important; }
@@ -298,11 +302,24 @@
                 </label>
             </div>
 
-            <!-- กล้องส่องบาร์โค้ดมือถือ (กรอบแนวนอนสำหรับ 1D Barcode + QR) -->
+            <!-- ผลลัพธ์การสแกนล่าสุด + ตัวเลขจำนวนคงเหลือเด่นชัด + Undo -->
+            <div id="lastScanBanner" class="hidden rounded-xl border p-3 flex flex-wrap items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <div id="lastScanTitle" class="text-sm font-bold text-slate-900"></div>
+                    <div id="lastScanMeta" class="text-xs text-slate-600 mt-0.5"></div>
+                </div>
+                <div id="lastScanQtyBadge" class="hidden px-3 py-1 rounded-xl bg-white border border-slate-200 text-center shrink-0">
+                    <div class="text-[10px] text-slate-400 leading-none">คงเหลือ</div>
+                    <div id="lastScanQtyNum" class="text-lg font-extrabold text-slate-900 leading-tight tabular-nums">0</div>
+                </div>
+                <div id="lastScanActions"></div>
+            </div>
+
+            <!-- กล้องส่อง QR Code & บาร์โค้ดมือถือ (Dual-Engine: jsQR + BarcodeDetector + Html5Qrcode) -->
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2.5">
                 <div class="flex items-center justify-between gap-2">
                     <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <i data-lucide="camera" class="w-4 h-4 text-blue-600"></i> กล้องสแกนบาร์โค้ด
+                        <i data-lucide="camera" class="w-4 h-4 text-blue-600"></i> กล้องสแกน QR / บาร์โค้ด
                     </span>
                     <div class="flex items-center gap-1.5">
                         <label class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
@@ -317,8 +334,22 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Dual-Engine Native Camera View (jsQR + BarcodeDetector) -->
+                <div id="nativeCamWrap" class="hidden relative w-full overflow-hidden rounded-xl bg-slate-950 aspect-[4/3]">
+                    <video id="nativeCamVideo" class="w-full h-full object-cover" playsinline muted autoplay></video>
+                    <canvas id="nativeCamCanvas" class="hidden"></canvas>
+                    <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div id="nativeCamReticle" class="w-56 h-56 sm:w-64 sm:h-48 relative rounded-2xl border-2 border-emerald-400/90 shadow-[0_0_0_9999px_rgba(15,23,42,0.35)] transition-colors">
+                            <div class="absolute inset-x-3 h-0.5 bg-emerald-400 shadow-[0_0_10px_#34d399] scan-laser-line"></div>
+                        </div>
+                    </div>
+                    <div id="camLiveOverlay" class="hidden absolute top-2.5 inset-x-2.5 px-3 py-2 rounded-xl bg-emerald-600/95 text-white text-xs font-bold text-center shadow-lg"></div>
+                </div>
+
+                <!-- Fallback Html5Qrcode container -->
                 <div id="barcodeReader" class="hidden w-full overflow-hidden rounded-xl bg-black"></div>
-                <div id="cameraStatus" class="text-[11px] text-slate-500 text-center">กด "เปิดกล้อง" แล้ววางแถบบาร์โค้ดในแนวนอนให้ชัดอยู่ในกรอบ (ห่าง ~15-20 ซม.)</div>
+                <div id="cameraStatus" class="text-[11px] text-slate-500 text-center">กด "เปิดกล้อง" แล้วนำ QR Code หรือบาร์โค้ดมาจ่อในกรอบ</div>
             </div>
 
             <!-- ช่องเครื่องยิงบาร์โค้ด USB / Bluetooth -->
@@ -328,15 +359,6 @@
                     รับเข้าทันที
                 </button>
             </form>
-
-            <!-- ผลลัพธ์การสแกนล่าสุด + Undo -->
-            <div id="lastScanBanner" class="hidden rounded-xl border p-3 flex flex-wrap items-center justify-between gap-2">
-                <div class="min-w-0">
-                    <div id="lastScanTitle" class="text-xs sm:text-sm font-bold text-slate-900"></div>
-                    <div id="lastScanMeta" class="text-xs text-slate-600 mt-0.5"></div>
-                </div>
-                <div id="lastScanActions"></div>
-            </div>
         </div>
     </div>
 
@@ -772,7 +794,7 @@
 
         async function fetchProducts() {
             try {
-                const res = await fetch(`${API_BASE}/products?team=${currentTeam}&t=${Date.now()}`);
+                const res = await fetch(`${API_BASE}/products?team=${currentTeam}&t=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) return;
                 products = sortProductsThai(await res.json());
                 renderDashboard();
@@ -781,7 +803,7 @@
 
         async function fetchLogs() {
             try {
-                const res = await fetch(`${API_BASE}/logs?team=${currentTeam}&t=${Date.now()}`);
+                const res = await fetch(`${API_BASE}/logs?team=${currentTeam}&t=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) return;
                 logs = await res.json();
                 renderLogsTable();
@@ -789,8 +811,9 @@
         }
 
         async function checkDataHeartbeat() {
+            if (isScanInFlight) return;
             try {
-                const res = await fetch(`${API_BASE}/version?team=${currentTeam}&t=${Date.now()}`);
+                const res = await fetch(`${API_BASE}/version?team=${currentTeam}&t=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) return;
                 const data = await res.json();
                 if (!currentDataVersion) currentDataVersion = data.v;
@@ -1002,43 +1025,118 @@
             });
         }
 
+        let isScanInFlight = false;
+        let nativeMediaStream = null;
+        let nativeScanRaf = null;
+        let nativeBarcodeDetector = null;
+        let _camOverlayTimer = null;
+
+        function showCamLiveOverlay(text, isError = false) {
+            const el = document.getElementById('camLiveOverlay');
+            const ret = document.getElementById('nativeCamReticle');
+            if (el) {
+                el.textContent = text;
+                el.className = `absolute top-2.5 inset-x-2.5 px-3 py-2 rounded-xl text-white text-xs font-bold text-center shadow-lg ${isError ? 'bg-rose-600/95' : 'bg-emerald-600/95'}`;
+                el.classList.remove('hidden');
+            }
+            if (ret) {
+                ret.classList.remove('border-emerald-400/90', 'border-rose-400');
+                ret.classList.add(isError ? 'border-rose-400' : 'border-emerald-300');
+            }
+            clearTimeout(_camOverlayTimer);
+            _camOverlayTimer = setTimeout(() => {
+                if (el) el.classList.add('hidden');
+                if (ret) { ret.classList.remove('border-rose-400', 'border-emerald-300'); ret.classList.add('border-emerald-400/90'); }
+            }, 2200);
+        }
+
         async function executeBarcodeScan(rawCode, options = {}) {
-            const code = String(rawCode || '').trim();
-            if (!code) return;
+            const code = String(rawCode || '').replace(/[\r\n\t\x00-\x1F]/g, '').trim();
+            if (!code || isScanInFlight) return;
+            isScanInFlight = true;
+
             const mode = options.mode || scanMode;
-            const amount = Math.max(1, parseInt(options.amount || document.getElementById('scanAmountInput').value || '1', 10));
+            const rawAmt = options.amount !== undefined ? options.amount : (document.getElementById('scanAmountInput')?.value || document.getElementById('quickScanQty')?.value || '1');
+            const parsedAmt = parseInt(rawAmt, 10);
+            const amount = Number.isFinite(parsedAmt) && parsedAmt > 0 ? parsedAmt : 1;
             const source = options.source || 'สแกนบาร์โค้ด / QR';
 
             try {
                 const res = await fetch(`${API_BASE}/scan`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
                     body: JSON.stringify({ qrCode: code, mode, amount, source })
                 });
-                const data = await res.json();
+                let data = {};
+                try { data = await res.json(); } catch (e) {}
 
                 if (res.status === 404 && data.notFound) {
                     playBeep('error');
+                    showCamLiveOverlay(`ไม่พบรหัส ${code} — เปิดหน้าเพิ่มสินค้า`, true);
                     closeScanModal();
-                    openModalWithBarcode(data.qrCode, amount);
+                    openModalWithBarcode(data.qrCode || code, amount);
                     return;
                 }
-                if (!res.ok) {
+                if (!res.ok || !data.success) {
                     playBeep('error');
-                    showLastScanBanner('error', data.error || 'ไม่สามารถตัดสต็อกได้', '');
-                    showToast(data.error || 'ไม่สามารถตัดสต็อกได้', true);
+                    const errMsg = data.error || `ปรับสต็อกไม่สำเร็จ (HTTP ${res.status})`;
+                    showLastScanBanner('error', errMsg, `รหัสที่สแกน: ${code}`);
+                    showCamLiveOverlay(errMsg, true);
+                    showToast(errMsg, true);
                     return;
                 }
 
                 playBeep(mode);
                 const prod = data.product;
-                const msg = `${mode === 'in' ? 'รับเข้า' : 'เบิกออก'} ${data.amount} ชิ้น — ${prod.name} (${data.oldQuantity} → ${data.newQuantity})`;
-                showLastScanBanner(mode, msg, `รหัส ${prod.qrCode}${data.lowStock ? ' • สต็อกใกล้หมด!' : ''}`, data.logId);
+                const newQty = Number(data.newQuantity ?? prod.quantity ?? 0);
+                const oldQty = Number(data.oldQuantity ?? 0);
+
+                // หากสินค้าที่สแกนอยู่คนละทีม ให้สลับไปทีมของสินค้านั้นอัตโนมัติเพื่อให้เห็นตัวเลขขึ้นทันที
+                if (prod.team && prod.team !== currentTeam) {
+                    currentTeam = prod.team;
+                    localStorage.setItem('stockmaster_lab_team', currentTeam);
+                    currentDataVersion = '';
+                    updateTeamButtonsUI();
+                }
+
+                // อัปเดตตัวเลขในหน้าจอทันที (ไม่ต้องรอ fetch รอบใหม่เสร็จ)
+                const idx = products.findIndex(x => Number(x.id) === Number(prod.id));
+                if (idx !== -1) {
+                    products[idx] = { ...products[idx], ...prod, quantity: newQty };
+                } else {
+                    products.push({ ...prod, quantity: newQty });
+                    products = sortProductsThai(products);
+                }
+                renderDashboard();
+                flashProductRow(prod.id, mode);
+
+                const signText = mode === 'in' ? `+${data.amount}` : `−${data.amount}`;
+                const msg = `${mode === 'in' ? 'รับเข้า' : 'เบิกออก'} ${signText} ชิ้น — ${prod.name} (${oldQty} → ${newQty})`;
+                showLastScanBanner(mode, msg, `รหัส ${prod.qrCode} • ${getTeamDisplayName(prod.team)}${data.lowStock ? ' • สต็อกใกล้หมด!' : ''}`, data.logId, newQty);
+                showCamLiveOverlay(`✓ ${prod.name} (${signText}) • คงเหลือ ${newQty}`, false);
                 showToast(msg);
+
+                // ซิงก์กับเซิร์ฟเวอร์อีกรอบ (ป้องกันกรณี serverless cold-start คืนค่าเก่าทับ)
+                const prevSnapshot = new Map(products.map(p => [Number(p.id), p]));
                 await Promise.all([fetchProducts(), fetchLogs()]);
+                const updatedAfterFetch = products.find(x => Number(x.id) === Number(prod.id));
+                if (updatedAfterFetch && Number(updatedAfterFetch.quantity) === oldQty && newQty !== oldQty) {
+                    updatedAfterFetch.quantity = newQty;
+                    renderDashboard();
+                } else if (!updatedAfterFetch && prevSnapshot.has(Number(prod.id))) {
+                    products.push({ ...prod, quantity: newQty });
+                    products = sortProductsThai(products);
+                    renderDashboard();
+                }
                 flashProductRow(prod.id, mode);
             } catch (err) {
                 playBeep('error');
+                showLastScanBanner('error', 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่', `รหัสที่สแกน: ${code}`);
+                showCamLiveOverlay('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', true);
                 showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', true);
+            } finally {
+                isScanInFlight = false;
             }
         }
 
@@ -1078,7 +1176,7 @@
             }
         });
 
-        function showLastScanBanner(type, title, meta, logId = null) {
+        function showLastScanBanner(type, title, meta, logId = null, newQty = null) {
             const box = document.getElementById('lastScanBanner');
             const toneClass = type === 'in' ? 'rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex flex-wrap items-center justify-between gap-2'
                 : type === 'out' ? 'rounded-xl border border-rose-200 bg-rose-50 p-3 flex flex-wrap items-center justify-between gap-2'
@@ -1089,6 +1187,16 @@
                 document.getElementById('lastScanTitle').textContent = title;
                 document.getElementById('lastScanMeta').textContent = meta || '';
                 document.getElementById('lastScanActions').innerHTML = undoHtml;
+                const qtyBadge = document.getElementById('lastScanQtyBadge');
+                const qtyNum = document.getElementById('lastScanQtyNum');
+                if (qtyBadge && qtyNum) {
+                    if (newQty !== null && newQty !== undefined) {
+                        qtyNum.textContent = Number(newQty).toLocaleString('th-TH');
+                        qtyBadge.classList.remove('hidden');
+                    } else {
+                        qtyBadge.classList.add('hidden');
+                    }
+                }
                 box.className = toneClass;
             }
             const qBox = document.getElementById('quickScanFeedback');
@@ -1099,9 +1207,16 @@
         }
 
         async function undoLog(logId) {
-            const res = await fetch(`${API_BASE}/undo/${logId}`, { method: 'POST' });
+            const res = await fetch(`${API_BASE}/undo/${logId}`, { method: 'POST', cache: 'no-store' });
             const data = await res.json();
             if (!res.ok) return showToast(data.error || 'ยกเลิกไม่สำเร็จ', true);
+            if (data.product) {
+                const idx = products.findIndex(x => Number(x.id) === Number(data.product.id));
+                if (idx !== -1) {
+                    products[idx].quantity = Number(data.newQuantity ?? data.product.quantity ?? 0);
+                    renderDashboard();
+                }
+            }
             document.getElementById('lastScanBanner')?.classList.add('hidden');
             document.getElementById('quickScanFeedback')?.classList.add('hidden');
             showToast(`ย้อนสต็อก "${data.product.name}" กลับเป็น ${data.newQuantity} ชิ้นแล้ว`);
@@ -1116,37 +1231,112 @@
             row.classList.add(mode === 'in' ? 'flash-in' : 'flash-out');
         }
 
+        function onCameraCodeDetected(decodedText, sourceLabel) {
+            const clean = String(decodedText || '').replace(/[\r\n\t\x00-\x1F]/g, '').trim();
+            if (!clean) return;
+            const now = Date.now();
+            if (clean === lastScannedCode && now - lastScannedAt < 1800) return;
+            if (isScanInFlight) return;
+            lastScannedCode = clean;
+            lastScannedAt = now;
+            const status = document.getElementById('cameraStatus');
+            if (status) status.textContent = `สแกนติดแล้ว: ${clean}`;
+            executeBarcodeScan(clean, { source: sourceLabel || 'กล้องมือถือ (QR/บาร์โค้ด)' });
+        }
+
         async function startCameraScanner() {
             if (isCameraRunning) return;
-            const readerEl = document.getElementById('barcodeReader');
             const status = document.getElementById('cameraStatus');
+            const nativeWrap = document.getElementById('nativeCamWrap');
+            const video = document.getElementById('nativeCamVideo');
+            const canvas = document.getElementById('nativeCamCanvas');
+            const readerEl = document.getElementById('barcodeReader');
+
+            status.textContent = 'กำลังเปิดกล้อง...';
+
+            // โหมดหลัก (Dual-Engine): getUserMedia + jsQR (QR เร็วมากบน iPhone & Android) + Native BarcodeDetector (1D Barcode)
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.jsQR || 'BarcodeDetector' in window)) {
+                try {
+                    try {
+                        nativeMediaStream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                            audio: false
+                        });
+                    } catch (e1) {
+                        nativeMediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    }
+                    video.srcObject = nativeMediaStream;
+                    await video.play();
+                    nativeWrap.classList.remove('hidden');
+                    readerEl.classList.add('hidden');
+                    isCameraRunning = true;
+                    document.getElementById('startCamBtn').classList.add('hidden');
+                    document.getElementById('stopCamBtn').classList.remove('hidden');
+
+                    nativeBarcodeDetector = null;
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            nativeBarcodeDetector = new BarcodeDetector({
+                                formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'itf']
+                            });
+                        } catch (e) { nativeBarcodeDetector = null; }
+                    }
+
+                    status.textContent = nativeBarcodeDetector
+                        ? 'กล้องพร้อมแล้ว — ส่องได้ทั้ง QR Code และบาร์โค้ดแท่ง'
+                        : 'กล้องพร้อมแล้ว — ส่อง QR Code ในกรอบ (ห่างประมาณ 15-20 ซม.)';
+
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    let frameCount = 0;
+                    let detectingNative = false;
+
+                    const tick = async () => {
+                        if (!isCameraRunning || !nativeMediaStream) return;
+                        if (video.readyState >= 2 && video.videoWidth > 0 && !isScanInFlight) {
+                            frameCount++;
+                            // 1) ตรวจจับด้วย Native BarcodeDetector (อ่านได้ทั้ง 1D Barcode และ QR)
+                            if (nativeBarcodeDetector && !detectingNative && frameCount % 3 === 0) {
+                                detectingNative = true;
+                                nativeBarcodeDetector.detect(video).then(codes => {
+                                    if (codes && codes.length > 0 && codes[0].rawValue) {
+                                        onCameraCodeDetected(codes[0].rawValue, 'กล้องมือถือ (บาร์โค้ด/QR)');
+                                    }
+                                }).catch(() => {}).finally(() => { detectingNative = false; });
+                            }
+                            // 2) ตรวจจับ QR Code ด้วย jsQR (ทำงานได้ 100% บน iPhone Safari & Android Chrome)
+                            if (window.jsQR && frameCount % 2 === 0) {
+                                const scale = Math.min(1, 640 / video.videoWidth);
+                                const w = Math.floor(video.videoWidth * scale);
+                                const h = Math.floor(video.videoHeight * scale);
+                                if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+                                ctx.drawImage(video, 0, 0, w, h);
+                                const imgData = ctx.getImageData(0, 0, w, h);
+                                const qr = window.jsQR(imgData.data, w, h, { inversionAttempts: 'attemptBoth' });
+                                if (qr && qr.data) {
+                                    onCameraCodeDetected(qr.data, 'กล้องมือถือ (QR Code)');
+                                }
+                            }
+                        }
+                        nativeScanRaf = requestAnimationFrame(tick);
+                    };
+                    nativeScanRaf = requestAnimationFrame(tick);
+                    return;
+                } catch (err) {
+                    nativeWrap.classList.add('hidden');
+                    // ลอง fallback ไปใช้ Html5Qrcode ด้านล่าง
+                }
+            }
+
+            // Fallback: Html5Qrcode (ไม่เปิด experimentalFeatures ที่มักมีบั๊กบนมือถือ)
             if (!window.Html5Qrcode) {
-                status.textContent = 'โหลดตัวอ่านกล้องไม่สำเร็จ กรุณารีเฟรชหน้าเว็บ';
+                status.textContent = 'เปิดกล้องไม่สำเร็จ กรุณาอนุญาตสิทธิ์กล้อง หรือใช้ช่องพิมพ์/เครื่องยิงบาร์โค้ดด้านล่าง';
                 return;
             }
             readerEl.classList.remove('hidden');
-            status.textContent = 'กำลังเปิดกล้อง...';
             try {
-                html5Scanner = new Html5Qrcode('barcodeReader', {
-                    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-                    verbose: false
-                });
-                // กรอบสแกนสมดุล รองรับทั้ง QR Code และ บาร์โค้ด 1D (EAN-13, Code-128) บนมือถือ
-                const config = {
-                    fps: 15,
-                    qrbox: (w, h) => ({
-                        width: Math.max(210, Math.floor(w * 0.82)),
-                        height: Math.max(150, Math.floor(h * 0.56))
-                    }),
-                    aspectRatio: 1.4
-                };
-                const onSuccess = (decodedText) => {
-                    const now = Date.now();
-                    if (decodedText === lastScannedCode && now - lastScannedAt < 1800) return;
-                    lastScannedCode = decodedText; lastScannedAt = now;
-                    status.textContent = `สแกนติดแล้ว: ${decodedText}`;
-                    executeBarcodeScan(decodedText, { source: 'กล้องมือถือ (บาร์โค้ด/QR)' });
-                };
+                html5Scanner = new Html5Qrcode('barcodeReader', { verbose: false });
+                const config = { fps: 12, qrbox: { width: 240, height: 180 } };
+                const onSuccess = (decodedText) => onCameraCodeDetected(decodedText, 'กล้องมือถือ');
                 try {
                     await html5Scanner.start({ facingMode: 'environment' }, config, onSuccess, () => {});
                 } catch (backErr) {
@@ -1157,14 +1347,22 @@
                 isCameraRunning = true;
                 document.getElementById('startCamBtn').classList.add('hidden');
                 document.getElementById('stopCamBtn').classList.remove('hidden');
-                status.textContent = 'กล้องพร้อมแล้ว — วาง QR Code หรือแท่งบาร์โค้ดให้อยู่ในกรอบ (ห่าง ~15-20 ซม.)';
+                status.textContent = 'กล้องพร้อมแล้ว — วาง QR Code หรือบาร์โค้ดให้อยู่ในกรอบ';
             } catch (e) {
                 readerEl.classList.add('hidden');
-                status.textContent = 'เปิดกล้องไม่สำเร็จ: กรุณาเปิดผ่าน Safari/Chrome บนเว็บ https:// และกดอนุญาตสิทธิ์กล้อง';
+                status.textContent = 'เปิดกล้องไม่สำเร็จ: กรุณาเปิดผ่าน https:// และกดอนุญาตสิทธิ์กล้อง';
             }
         }
 
         async function stopCameraScanner() {
+            if (nativeScanRaf) { cancelAnimationFrame(nativeScanRaf); nativeScanRaf = null; }
+            if (nativeMediaStream) {
+                try { nativeMediaStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                nativeMediaStream = null;
+            }
+            const video = document.getElementById('nativeCamVideo');
+            if (video) video.srcObject = null;
+            document.getElementById('nativeCamWrap')?.classList.add('hidden');
             if (html5Scanner && isCameraRunning) {
                 try { await html5Scanner.stop(); await html5Scanner.clear(); } catch (e) {}
             }
@@ -1176,15 +1374,57 @@
 
         async function scanBarcodeFromImage(e) {
             const file = e.target.files?.[0]; e.target.value = '';
-            if (!file || !window.Html5Qrcode) return;
+            if (!file) return;
+            // 1) ลองอ่านด้วย jsQR + BarcodeDetector จากรูปก่อน (เร็วและแม่นยำกับ QR ของระบบ)
             try {
-                let d = document.getElementById('barcodeFileTemp');
-                if (!d) { d = document.createElement('div'); d.id = 'barcodeFileTemp'; d.style.display = 'none'; document.body.appendChild(d); }
-                const decoded = await new Html5Qrcode('barcodeFileTemp').scanFile(file, true);
-                executeBarcodeScan(decoded, { source: 'รูปภาพบาร์โค้ด' });
-            } catch (err) {
-                showToast('ไม่พบบาร์โค้ดในรูปภาพนี้', true);
+                const url = URL.createObjectURL(file);
+                const img = await new Promise((resolve, reject) => {
+                    const i = new Image();
+                    i.onload = () => resolve(i);
+                    i.onerror = reject;
+                    i.src = url;
+                });
+                URL.revokeObjectURL(url);
+
+                if ('BarcodeDetector' in window) {
+                    try {
+                        const det = new BarcodeDetector({ formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e'] });
+                        const res = await det.detect(img);
+                        if (res && res.length && res[0].rawValue) {
+                            executeBarcodeScan(res[0].rawValue, { source: 'รูปภาพ (QR/บาร์โค้ด)' });
+                            return;
+                        }
+                    } catch (e) {}
+                }
+                if (window.jsQR) {
+                    const c = document.createElement('canvas');
+                    const max = 1000;
+                    const scale = Math.min(1, max / Math.max(img.width, img.height));
+                    c.width = Math.max(1, Math.floor(img.width * scale));
+                    c.height = Math.max(1, Math.floor(img.height * scale));
+                    const ctx = c.getContext('2d');
+                    ctx.drawImage(img, 0, 0, c.width, c.height);
+                    const idata = ctx.getImageData(0, 0, c.width, c.height);
+                    const qr = window.jsQR(idata.data, c.width, c.height, { inversionAttempts: 'attemptBoth' });
+                    if (qr && qr.data) {
+                        executeBarcodeScan(qr.data, { source: 'รูปภาพ (QR Code)' });
+                        return;
+                    }
+                }
+            } catch (e) {}
+
+            // 2) Fallback: Html5Qrcode scanFile
+            if (window.Html5Qrcode) {
+                try {
+                    let d = document.getElementById('barcodeFileTemp');
+                    if (!d) { d = document.createElement('div'); d.id = 'barcodeFileTemp'; d.style.display = 'none'; document.body.appendChild(d); }
+                    const decoded = await new Html5Qrcode('barcodeFileTemp').scanFile(file, true);
+                    executeBarcodeScan(decoded, { source: 'รูปภาพบาร์โค้ด' });
+                    return;
+                } catch (err) {}
             }
+            playBeep('error');
+            showToast('ไม่พบ QR Code หรือบาร์โค้ดในรูปภาพนี้', true);
         }
 
         // ============================================================
